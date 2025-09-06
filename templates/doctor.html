@@ -1,0 +1,256 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Doctor's Portal</h2>
+<form method="POST">
+    <label for="patient_id">Patient ID:</label>
+    <input type="number" id="patient_id" name="patient_id" required>
+    <label for="symptoms">Symptoms:</label>
+    <textarea id="symptoms" name="symptoms" required></textarea>
+    <label for="diagnosis">Diagnosis:</label>
+    <textarea id="diagnosis" name="diagnosis" required></textarea>
+    <button type="submit">Save Diagnosis</button>
+</form>
+{% endblock %}
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Doctor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Doctor</h1>
+    <form action="{{ url_for('doctor') }}" method="post">
+        <label for="patient_id">Patient ID:</label>
+        <input type="text" id="patient_id" name="patient_id" required><br>
+        <label for="symptoms">Symptoms:</label>
+        <input type="text" id="symptoms" name="symptoms" required><br>
+        <label for="diagnosis">Diagnosis:</label>
+        <input type="text" id="diagnosis" name="diagnosis" required><br>
+        <button type="submit">Save Diagnosis</button>
+    </form>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Diagnosis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Patient Diagnosis</h1>
+    </header>
+    <form action="{{ url_for('doctor') }}" method="POST">
+        <label for="patient_id">Patient ID:</label>
+        <input type="number" id="patient_id" name="patient_id" required>
+
+        <label for="symptoms">Symptoms:</label>
+        <textarea id="symptoms" name="symptoms" required></textarea>
+
+        <label for="diagnosis">Diagnosis:</label>
+        <textarea id="diagnosis" name="diagnosis" required></textarea>
+
+        <button type="submit">Save Diagnosis</button>
+    </form>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Diagnosis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Patient Diagnosis</h1>
+    </header>
+    <form action="{{ url_for('main.doctor') }}" method="POST">
+        <label for="patient_id">Patient ID:</label>
+        <select id="patient_id" name="patient_id">
+            {% for patient in patients %}
+                <option value="{{ patient.id }}">{{ patient.name }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="doctor_id">Doctor ID:</label>
+        <select id="doctor_id" name="doctor_id">
+            {% for doctor in doctors %}
+                <option value="{{ doctor.id }}">{{ doctor.name }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="symptoms">Symptoms:</label>
+        <textarea id="symptoms" name="symptoms" required></textarea>
+        
+        <label for="diagnosis">Diagnosis:</label>
+        <textarea id="diagnosis" name="diagnosis" required></textarea>
+        
+        <button type="submit">Record Diagnosis</button>
+    </form>
+</body>
+</html> -->
+
+
+
+
+
+<!-- templates/doctor.html -->
+<!-- {% extends 'index.html' %}
+
+{% block content %}
+<h2>Doctor Consultation</h2>
+<form method="POST">
+    <label for="patient_id">Patient ID:</label>
+    <input type="number" id="patient_id" name="patient_id" required><br>
+
+    <label for="symptoms">Symptoms:</label>
+    <textarea id="symptoms" name="symptoms" required></textarea><br>
+
+    <label for="diagnosis">Diagnosis:</label>
+    <textarea id="diagnosis" name="diagnosis" required></textarea><br>
+
+    <button type="submit">Save Diagnosis</button>
+</form>
+{% endblock %} -->
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Diagnosis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Patient Diagnosis</h1>
+    </header>
+    <form action="{{ url_for('doctor', id=patient[0]) }}" method="POST">
+        <h2>Patient: {{ patient[1] }}</h2>
+        <p>Age: {{ patient[2] }}</p>
+        <p>Gender: {{ patient[3] }}</p>
+        <p>Contact: {{ patient[4] }}</p>
+        <p>Address: {{ patient[5] }}</p>
+        
+        <label for="symptoms">Symptoms:</label>
+        <textarea name="symptoms" id="symptoms" placeholder="Enter symptoms" required>{{ patient[6] }}</textarea><br>
+    
+        <label for="diagnosis">Diagnosis:</label>
+        <textarea name="diagnosis" id="diagnosis" placeholder="Enter diagnosis" required>{{ patient[7] }}</textarea><br>
+    
+        <button type="submit">Update Diagnosis</button>
+    </form>
+    
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Doctor's Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Doctor's Portal</h1>
+    <form method="POST">
+        <label for="patient_id">Patient</label>
+        <select id="patient_id" name="patient_id" required>
+            {% for patient in patients %}
+            <option value="{{ patient[0] }}">{{ patient[1] }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="doctor_id">Doctor</label>
+        <select id="doctor_id" name="doctor_id" required>
+            {% for doctor in doctors %}
+            <option value="{{ doctor[0] }}">{{ doctor[1] }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="symptoms">Symptoms</label>
+        <textarea id="symptoms" name="symptoms" required></textarea><br>
+
+        <label for="diagnosis">Diagnosis</label>
+        <textarea id="diagnosis" name="diagnosis" required></textarea><br>
+
+        <input type="submit" value="Record Diagnosis">
+    </form>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html>
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Diagnosis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Patient Diagnosis</h1>
+    </header>
+    <form action="{{ url_for('doctor') }}" method="POST">
+        <label for="patient_id">Patient ID:</label>
+        <select id="patient_id" name="patient_id">
+            {% for patient in patients %}
+                <option value="{{ patient[0] }}">{{ patient[1] }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="doctor_id">Doctor ID:</label>
+        <select id="doctor_id" name="doctor_id">
+            {% for doctor in doctors %}
+                <option value="{{ doctor[0] }}">{{ doctor[1] }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="symptoms">Symptoms:</label>
+        <textarea id="symptoms" name="symptoms" required></textarea>
+        
+        <label for="diagnosis">Diagnosis:</label>
+        <textarea id="diagnosis" name="diagnosis" required></textarea>
+        
+        <button type="submit">Record Diagnosis</button>
+    </form>
+</body>
+</html>
+
+
+
+
+ -->

@@ -1,0 +1,230 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Register Patient</h2>
+<form method="POST">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name" required>
+    <label for="age">Age:</label>
+    <input type="number" id="age" name="age" required>
+    <label for="gender">Gender:</label>
+    <select id="gender" name="gender" required>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+    </select>
+    <label for="contact">Contact:</label>
+    <input type="text" id="contact" name="contact" required>
+    <label for="address">Address:</label>
+    <input type="text" id="address" name="address" required>
+    <button type="submit">Register Patient</button>
+</form>
+{% endblock %}
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Patient</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Register Patient</h1>
+    </header>
+    <form action="{{ url_for('register') }}" method="POST" onsubmit="sendMessage()">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age" required>
+
+        <label for="gender">Gender:</label>
+        <select id="gender" name="gender" required>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+
+        <label for="contact">Contact:</label>
+        <input type="text" id="contact" name="contact" required>
+
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" required>
+
+        <button type="submit">Register</button>
+    </form>
+
+    <script>
+        function sendMessage() {
+            alert("Thank you for registering. We wish you a quick recovery!");
+        }
+    </script>
+</body>
+</html> -->
+
+
+
+
+<!-- templates/register.html --> 
+<!-- {% extends 'base.html' %}
+
+{% block content %}
+<h2>Register Patient</h2>
+<form method="POST">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name" required><br>
+
+    <label for="age">Age:</label>
+    <input type="number" id="age" name="age" required><br>
+
+    <label for="gender">Gender:</label>
+    <select id="gender" name="gender" required>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+    </select><br>
+
+    <label for="contact">Contact:</label>
+    <input type="text" id="contact" name="contact" required><br>
+
+    <label for="address">Address:</label>
+    <input type="text" id="address" name="address" required><br>
+
+    <button type="submit">Register</button>
+</form>
+{% endblock %} -->
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Patient</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Register Patient</h1>
+    </header>
+    <form action="{{ url_for('main.register') }}" method="POST">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+        
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age" required>
+        
+        <label for="gender">Gender:</label>
+        <select id="gender" name="gender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+        
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" required>
+        
+        <label for="phone">Phone:</label>
+        <input type="text" id="phone" name="phone" required>
+        
+        <button type="submit">Register</button>
+    </form>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register Patient</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Register Patient</h1>
+
+
+    <form action="{{ url_for('register') }}" method="POST">
+        <input type="text" name="name" placeholder="Patient Name" required><br>
+        <input type="number" name="age" placeholder="Age" required><br>
+        <input type="text" name="gender" placeholder="Gender" required><br>
+        <input type="text" name="contact" placeholder="Contact Info" required><br>
+        <textarea name="address" placeholder="Address" required></textarea><br>
+        <button type="submit">Register</button>
+    </form>
+    
+     <form method="POST">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" required><br>
+
+        <label for="age">Age</label>
+        <input type="number" id="age" name="age" required><br>
+
+        <label for="gender">Gender</label>
+        <input type="text" id="gender" name="gender" required><br>
+
+        <label for="address">Address</label>
+        <input type="text" id="address" name="address" required><br>
+
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" name="phone" required><br>
+
+        <input type="submit" value="Register">
+    </form> -->
+    <!-- <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> --> 
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Patient</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Register Patient</h1>
+    </header>
+    <form action="{{ url_for('register') }}" method="POST">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+        
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age" required>
+        
+        <label for="gender">Gender:</label>
+        <input type="text" id="gender" name="gender" required>
+        
+        <label for="contact">Contact:</label>
+        <input type="text" id="contact" name="contact" required>
+        
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" required>
+        
+        <button type="submit">Register</button>
+    </form>
+</body>
+</html>

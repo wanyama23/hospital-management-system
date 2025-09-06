@@ -1,0 +1,175 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Lab Results</h2>
+<form method="POST">
+    <label for="patient_id">Patient ID:</label>
+    <input type="number" id="patient_id" name="patient_id" required>
+    <label for="lab_results">Lab Results:</label>
+    <textarea id="lab_results" name="lab_results" required></textarea>
+    <button type="submit">Save Lab Results</button>
+</form>
+{% endblock %}
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lab</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Lab</h1>
+    <form action="{{ url_for('lab') }}" method="post">
+        <label for="patient_id">Patient ID:</label>
+        <input type="text" id="patient_id" name="patient_id" required><br>
+        <label for="lab_results">Lab Results:</label>
+        <input type="text" id="lab_results" name="lab_results" required><br>
+        <button type="submit">Save Lab Results</button>
+    </form>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> -->
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Lab Results</h1>
+    </header>
+    <form action="{{ url_for('lab') }}" method="POST">
+        <label for="patient_id">Patient ID:</label>
+        <input type="number" id="patient_id" name="patient_id" required>
+
+        <label for="lab_results">Lab Results:</label>
+        <textarea id="lab_results" name="lab_results" required></textarea>
+
+        <button type="submit">Save Lab Results</button>
+    </form>
+</body>
+</html> -->
+
+
+
+
+
+
+
+<!-- templates/lab.html -->
+<!-- {% extends 'index.html' %}
+
+{% block content %}
+<h2>Lab Results</h2>
+<form method="POST">
+    <label for="patient_id">Patient ID:</label>
+    <input type="number" id="patient_id" name="patient_id" required><br>
+
+    <label for="lab_results">Lab Results:</label>
+    <textarea id="lab_results" name="lab_results" required></textarea><br>
+
+    <button type="submit">Save Lab Results</button>
+</form>
+{% endblock %} -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Test Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Lab Test Results</h1>
+    </header>
+    <form action="{{ url_for('lab', id=patient[0]) }}" method="POST">
+        <h2>Patient: {{ patient[1] }}</h2>
+        <p>Age: {{ patient[2] }}</p>
+        <p>Gender: {{ patient[3] }}</p>
+        <p>Contact: {{ patient[4] }}</p>
+        <p>Address: {{ patient[5] }}</p>
+        
+        <label for="lab_results">Lab Results:</label>
+        <textarea name="lab_results" id="lab_results" placeholder="Enter lab results" required>{{ patient[8] }}</textarea><br>
+    
+        <button type="submit">Submit Lab Results</button>
+    </form>
+    
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lab Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Lab Portal</h1>
+    <form method="POST">
+        <label for="report_id">Report</label>
+        <select id="report_id" name="report_id" required>
+            {% for report in reports %}
+            <option value="{{ report[0] }}">{{ report[3] }} - {{ report[2] }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="test_results">Test Results</label>
+        <textarea id="test_results" name="test_results" required></textarea><br>
+
+        <input type="submit" value="Record Test Results">
+    </form>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Test Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Lab Test Results</h1>
+    </header>
+    <form action="{{ url_for('lab') }}" method="POST">
+        <label for="report_id">Report ID:</label>
+        <select id="report_id" name="report_id">
+            {% for report in reports %}
+                <option value="{{ report[0] }}">Report {{ report[0] }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="test_results">Test Results:</label>
+        <textarea id="test_results" name="test_results" required></textarea>
+        
+        <button type="submit">Record Test Results</button>
+    </form>
+</body>
+</html> -->

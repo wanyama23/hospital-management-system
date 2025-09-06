@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Patient Details</h2>
+<p><strong>Name:</strong> {{ patient.name }}</p>
+<p><strong>Age:</strong> {{ patient.age }}</p>
+<p><strong>Gender:</strong> {{ patient.gender }}</p>
+<p><strong>Contact:</strong> {{ patient.contact }}</p>
+<p><strong>Address:</strong> {{ patient.address }}</p>
+<p><strong>Symptoms:</strong> {{ patient.symptoms }}</p>
+<p><strong>Diagnosis:</strong> {{ patient.diagnosis }}</p>
+<p><strong>Lab Results:</strong> {{ patient.lab_results }}</p>
+<p><strong>Prescribed Medicine:</strong> {{ patient.prescribed_medicine }}</p>
+<p><strong>Bill Amount:</strong> {{ patient.bill_amount }}</p>
+{% endblock %}
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Patient Details</h1>
+    <ul>
+        <li>ID: {{ patient[0] }}</li>
+        <li>Name: {{ patient[1] }}</li>
+        <li>Age: {{ patient[2] }}</li>
+        <li>Gender: {{ patient[3] }}</li>
+        <li>Contact: {{ patient[4] }}</li>
+        <li>Address: {{ patient[5] }}</li>
+        <li>Symptoms: {{ patient[6] }}</li>
+        <li>Diagnosis: {{ patient[7] }}</li>
+        <li>Lab Results: {{ patient[8] }}</li>
+        <li>Prescribed Medicine: {{ patient[9] }}</li>
+        <li>Bill Amount: {{ patient[10] }}</li>
+    </ul>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Patient Details</h1>
+    </header>
+    <div>
+        <h2>Details for Patient ID: {{ patient.id }}</h2>
+        <p>Name: {{ patient.name }}</p>
+        <p>Age: {{ patient.age }}</p>
+        <p>Gender: {{ patient.gender }}</p>
+        <p>Contact: {{ patient.contact }}</p>
+        <p>Address: {{ patient.address }}</p>
+        <p>Symptoms: {{ patient.symptoms }}</p>
+        <p>Diagnosis: {{ patient.diagnosis }}</p>
+        <p>Lab Results: {{ patient.lab_results }}</p>
+        <p>Prescribed Medicine: {{ patient.prescribed_medicine }}</p>
+        <p>Bill Amount: {{ patient.bill_amount }}</p>
+    </div>
+</body>
+</html> -->
+
+
+
+
+
+
+<!-- templates/patient_detail.html -->
+<!-- {% extends 'index.html' %}
+
+{% block content %}
+<h2>Patient Details</h2>
+<table>
+    <tr><th>Name</th><td>{{ patient[1] }}</td></tr>
+    <tr><th>Age</th><td>{{ patient[2] }}</td></tr>
+    <tr><th>Gender</th><td>{{ patient[3] }}</td></tr>
+    <tr><th>Contact</th><td>{{ patient[4] }}</td></tr>
+    <tr><th>Address</th><td>{{ patient[5] }}</td></tr>
+    <tr><th>Symptoms</th><td>{{ patient[6] }}</td></tr>
+    <tr><th>Diagnosis</th><td>{{ patient[7] }}</td></tr>
+    <tr><th>Lab Results</th><td>{{ patient[8] }}</td></tr>
+    <tr><th>Prescribed Medicine</th><td>{{ patient[9] }}</td></tr>
+    <tr><th>Bill Amount</th><td>{{ patient[10] }}</td></tr>
+    <tr><th>Payment Status</th><td>{{ patient[11] }}</td></tr>
+</table>
+{% endblock %} -->

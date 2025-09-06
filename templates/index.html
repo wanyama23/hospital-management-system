@@ -1,0 +1,814 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <h2>Dashboard</h2>
+    <p>Welcome to the Hospital Management System.</p>
+{% endblock %}
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+        <nav>
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('register') }}">Register Patient</a>
+            <a href="{{ url_for('doctor') }}">Doctor's Portal</a>
+            <a href="{{ url_for('lab') }}">Lab</a>
+            <a href="{{ url_for('pharmacist') }}">Pharmacist</a>
+            <a href="{{ url_for('cashier') }}">Cashier</a>
+        </nav>
+    </header>
+    <main>
+        <h2>Dashboard</h2>
+        <p>Welcome to the Hospital Management System.</p>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </main>
+    <footer>
+        <p>© 2025 Hospital Management System</p>
+    </footer>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Welcome to the Hospital Management System</h1>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('register') }}">Register Patient</a></li>
+            <li><a href="{{ url_for('doctor') }}">Doctor</a></li>
+            <li><a href="{{ url_for('lab') }}">Lab</a></li>
+            <li><a href="{{ url_for('pharmacist') }}">Pharmacist</a></li>
+            <li><a href="{{ url_for('cashier') }}">Cashier</a></li>
+        </ul>
+    </nav>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="messages">
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </section>
+
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('doctor') }}">Patient Diagnosis</a>
+    </section>
+
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('lab') }}">Record Lab Test Results</a>
+    </section>
+
+    <section>
+        <h2>Pharmacist</h2>
+        <a href="{{ url_for('pharmacist') }}">Prescribe Medicine</a>
+    </section>
+
+    <section>
+        <h2>Cashier</h2>
+        <a href="{{ url_for('cashier') }}">Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Hospital Management System</h1>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="{{ url_for('register') }}">Register Patient</a></li>
+            <! Loop through patients and create a link to the doctor page for each -->
+            <!-- {% for patient in patients %}
+                <li><a href="{{ url_for('doctor', id=patient[0]) }}">Doctor for {{ patient[1] }}</a></li>
+            {% endfor %}
+            <li><a href="{{ url_for('lab', id=1) }}">Lab</a></li>
+            <li><a href="{{ url_for('pharmacist', id=1) }}">Pharmacist</a></li>
+            <li><a href="{{ url_for('cashier', id=1) }}">Cashier</a></li>
+        </ul>
+    </nav>
+    <div>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+    </div>
+    <footer>
+        <p>&copy; 2024 Hospital Management System</p>
+    </footer>
+    
+
+</body>
+</html> -->
+
+
+
+
+<!-- templates/base.html -->
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('home') }}">Home</a></li>
+                <li><a href="{{ url_for('register') }}">Register Patient</a></li>
+                <li><a href="{{ url_for('doctor') }}">Doctor</a></li>
+                <li><a href="{{ url_for('lab') }}">Lab</a></li>
+                <li><a href="{{ url_for('pharmacist') }}">Pharmacist</a></li>
+                <li><a href="{{ url_for('cashier') }}">Cashier</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+        
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Hospital Management System</p>
+    </footer>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('main.register') }}">Register Patient</a>
+    </section>
+
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('main.doctor') }}">Patient Diagnosis</a>
+    </section>
+
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('main.lab') }}">Record Lab Test Results</a>
+    </section>
+
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('main.pharmacy') }}">Record Prescriptions</a>
+    </section>
+
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('main.billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('main.register') }}">Register Patient</a>
+    </section>
+
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('main.doctor') }}">Patient Diagnosis</a>
+    </section>
+
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('main.lab') }}">Record Lab Test Results</a>
+    </section>
+
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('main.pharmacy') }}">Record Prescriptions</a>
+    </section>
+
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('main.billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('main.register') }}">Register Patient</a>
+    </section>
+
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('main.doctor') }}">Patient Diagnosis</a>
+    </section>
+
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('main.lab') }}">Record Lab Test Results</a>
+    </section>
+
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('main.pharmacy') }}">Record Prescriptions</a>
+    </section>
+
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('main.billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </section>
+
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('doctor') }}">Patient Diagnosis</a>
+    </section>
+
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('lab') }}">Record Lab Test Results</a>
+    </section>
+
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('pharmacy') }}">Record Prescriptions</a>
+    </section>
+
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('main.register') }}">Register Patient</a>
+    </section>
+
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('main.doctor') }}">Patient Diagnosis</a>
+    </section>
+
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('main.lab') }}">Record Lab Test Results</a>
+    </section>
+
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('main.pharmacy') }}">Record Prescriptions</a>
+    </section>
+
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('main.billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Welcome to the Hospital Management System</h1>
+    <nav>
+        <a href="{{ url_for('main.register') }}">Register Patient</a>
+        <a href="{{ url_for('main.doctor') }}">Doctor's Portal</a>
+        <a href="{{ url_for('main.lab') }}">Lab Portal</a>
+        <a href="{{ url_for('main.pharmacy') }}">Pharmacy Portal</a>
+        <a href="{{ url_for('main.billing') }}">Billing Portal</a>
+    </nav>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </section>
+    
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('doctor') }}">Patient Diagnosis</a>
+    </section>
+    
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('lab') }}">Record Lab Test Results</a>
+    </section>
+    
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('pharmacy') }}">Record Prescriptions</a>
+    </section>
+    
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Welcome to the Hospital Management System</h1>
+    <nav>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+        <a href="{{ url_for('doctor') }}">Doctor's Portal</a>
+        <a href="{{ url_for('lab') }}">Lab Portal</a>
+        <a href="{{ url_for('pharmacy') }}">Pharmacy Portal</a>
+        <a href="{{ url_for('billing') }}">Billing Portal</a>
+    </nav>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </section>
+    
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('doctor') }}">Patient Diagnosis</a>
+    </section>
+    
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('lab') }}">Record Lab Test Results</a>
+    </section>
+    
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('pharmacy') }}">Record Prescriptions</a>
+    </section>
+    
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </section>
+    
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('doctor') }}">Patient Diagnosis</a>
+    </section>
+    
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('lab') }}">Record Lab Test Results</a>
+    </section>
+    
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('pharmacist') }}">Record Prescriptions</a>
+    </section>
+    
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+    
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    
+    <section>
+        <h2>Reception</h2>
+        <a href="{{ url_for('register') }}">Register Patient</a>
+    </section>
+    
+    <section>
+        <h2>Doctor</h2>
+        <a href="{{ url_for('doctor') }}">Patient Diagnosis</a>
+    </section>
+    
+    <section>
+        <h2>Lab</h2>
+        <a href="{{ url_for('lab') }}">Record Lab Test Results</a>
+    </section>
+    
+    <section>
+        <h2>Pharmacy</h2>
+        <a href="{{ url_for('pharmacy') }}">Record Prescriptions</a>
+    </section>
+    
+    <section>
+        <h2>Billing</h2>
+        <a href="{{ url_for('billing') }}">Record Billing</a>
+    </section>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Hospital Management System</h1>
+    </header>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('register') }}">Register Patient</a></li>
+            <li><a href="{{ url_for('doctor') }}">Doctor</a></li>
+            <li><a href="{{ url_for('lab') }}">Lab</a></li>
+            <li><a href="{{ url_for('pharmacist') }}">Pharmacist</a></li>
+            <li><a href="{{ url_for('pharmacist') }}">Pharmacist</a></li> -->
+            <!-- <li><a href="{{ url_for('cashier') }}">Cashier</a></li>
+        </ul>
+    </nav>
+</body>
+</html> --> 

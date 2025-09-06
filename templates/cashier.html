@@ -1,0 +1,188 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2>Cashier</h2>
+<form method="POST">
+    <label for="patient_id">Patient ID:</label>
+    <input type="number" id="patient_id" name="patient_id" required>
+    <label for="bill_amount">Bill Amount:</label>
+    <input type="number" id="bill_amount" name="bill_amount" required>
+    <button type="submit">Save Bill</button>
+</form>
+{% endblock %}
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cashier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Cashier</h1>
+    <form action="{{ url_for('cashier') }}" method="post">
+        <label for="patient_id">Patient ID:</label>
+        <input type="text" id="patient_id" name="patient_id" required><br>
+        <label for="bill_amount">Bill Amount:</label>
+        <input type="text" id="bill_amount" name="bill_amount" required><br>
+        <button type="submit">Save Bill</button>
+    </form>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Billing</h1>
+    </header>
+    <form action="{{ url_for('cashier') }}" method="POST">
+        <label for="patient_id">Patient ID:</label>
+        <input type="number" id="patient_id" name="patient_id" required>
+
+        <label for="bill_amount">Bill Amount:</label>
+        <input type="number" step="0.01" id="bill_amount" name="bill_amount" required>
+
+        <button type="submit">Save Billing</button>
+    </form>
+</body>
+</html> -->
+
+
+
+
+
+
+<!-- templates/cashier.html -->
+<!-- {% extends 'index.html' %}
+
+{% block content %}
+<h2>Billing</h2>
+<form method="POST">
+    <label for="patient_id">Patient ID:</label>
+    <input type="number" id="patient_id" name="patient_id" required><br>
+
+    <label for="bill_amount">Bill Amount:</label>
+    <input type="number" id="bill_amount" name="bill_amount" required><br>
+
+    <label for="payment_status">Payment Status:</label>
+    <select id="payment_status" name="payment_status" required>
+        <option value="Paid">Paid</option>
+        <option value="Unpaid">Unpaid</option>
+    </select><br>
+
+    <button type="submit">Save Payment</button>
+</form>
+{% endblock %} -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Record Billing</h1>
+    </header>
+    <form action="{{ url_for('cashier', id=patient[0]) }}" method="POST">
+        <h2>Patient: {{ patient[1] }}</h2>
+        <p>Age: {{ patient[2] }}</p>
+        <p>Gender: {{ patient[3] }}</p>
+        <p>Contact: {{ patient[4] }}</p>
+        <p>Address: {{ patient[5] }}</p>
+        
+        <label for="bill_amount">Bill Amount:</label>
+        <input type="number" name="bill_amount" id="bill_amount" placeholder="Enter bill amount" required><br>
+    
+        <button type="submit">Process Payment</button>
+    </form>
+    
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Billing Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Billing Portal</h1>
+    <form method="POST">
+        <label for="patient_id">Patient</label>
+        <select id="patient_id" name="patient_id" required>
+            {% for patient in patients %}
+            <option value="{{ patient[0] }}">{{ patient[1] }}</option>
+            {% endfor %}
+        </select><br>
+
+        <label for="amount">Amount</label>
+        <input type="number" id="amount" name="amount" required><br>
+
+        <label for="paid">Paid</label>
+        <input type="text" id="paid" name="paid" required><br>
+
+        <input type="submit" value="Record Billing">
+    </form>
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html> -->
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Record Billing</h1>
+    </header>
+    <form action="{{ url_for('billing') }}" method="POST">
+        <label for="patient_id">Patient ID:</label>
+        <select id="patient_id" name="patient_id">
+            {% for patient in patients %}
+                <option value="{{ patient[0] }}">{{ patient[1] }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="amount">Amount:</label>
+        <input type="number" step="0.01" id="amount" name="amount" required>
+        
+        <label for="paid">Paid:</label>
+        <select id="paid" name="paid">
+            <option value="1">Yes</option>
+            <option value="0">No</option>
+        </select>
+        
+        <button type="submit">Record Billing</button>
+    </form>
+</body>
+</html> -->
