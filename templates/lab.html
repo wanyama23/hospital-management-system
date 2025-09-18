@@ -1,4 +1,13 @@
-{% extends "layout.html" %}
+<h2>Laboratory Results</h2>
+<form method="POST">
+  <input type="number" name="patient_id" placeholder="Patient ID" required>
+  <textarea name="lab_results" placeholder="Lab Results"></textarea>
+  <button type="submit">Save Results</button>
+</form>
+
+
+
+<!-- {% extends "layout.html" %}
 
 {% block content %}
 <h2>Lab Results</h2>
@@ -9,7 +18,7 @@
     <textarea id="lab_results" name="lab_results" required></textarea>
     <button type="submit">Save Lab Results</button>
 </form>
-{% endblock %}
+{% endblock %} -->
 
 
 

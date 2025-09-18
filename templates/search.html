@@ -1,0 +1,26 @@
+<form method="POST" class="mb-4">
+  <input type="text" name="query" placeholder="Search by name, contact, or MRN" class="form-control mb-2">
+  <select name="status" class="form-select mb-2">
+    <option value="">--Admission Status--</option>
+    <option value="admitted">Admitted</option>
+    <option value="discharged">Discharged</option>
+  </select>
+  <input type="date" name="date" class="form-control mb-2">
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if results %}
+  <ul class="list-group mt-3">
+    {% for patient in results %}
+      <li class="list-group-item">
+        <a href="{{ url_for('patient_detail', id=patient['id']) }}">
+          {{ patient['medical_record_number'] }} – {{ patient['first_name'] }} {{ patient['last_name'] }}
+        </a>
+        <span class="text-muted float-end">{{ patient['admission_status'] }} | {{ patient['created_at'][:10] }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% elif request.method == 'POST' %}
+  <p class="text-muted mt-3">No matching patients found.</p>
+{% endif %}
+

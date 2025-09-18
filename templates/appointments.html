@@ -1,0 +1,125 @@
+<!-- <h2>Appointments</h2>
+<ul>
+  {% for appointment in appointments %}
+    <li>{{ appointment.patient_name }} with Dr. {{ appointment.doctor_name }} at {{ appointment.time }}</li>
+  {% endfor %}
+</ul> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Appointments</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .status-badge {
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .status-completed { background-color: #d1e7dd; color: #0f5132; }
+    .status-confirmed { background-color: #cfe2ff; color: #084298; }
+    .status-cancelled { background-color: #f8d7da; color: #842029; }
+    .status-no-show { background-color: #e2e3e5; color: #41464b; }
+    .status-default { background-color: #fff3cd; color: #664d03; }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="fw-bold text-dark">Appointments</h1>
+        <p class="text-muted">Manage patient appointments and scheduling</p>
+      </div>
+      <a href="/appointments/new" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i> New Appointment
+      </a>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="row g-3 mb-4">
+      <div class="col-md-6">
+        <label for="date" class="form-label">Select Date</label>
+        <input type="date" id="date" name="date" class="form-control" value="{{ selected_date }}">
+      </div>
+      <div class="col-md-6">
+        <label for="status" class="form-label">Filter by Status</label>
+        <select id="status" name="status" class="form-select">
+          <option value="all">All Statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="in-progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="no-show">No Show</option>
+        </select>
+      </div>
+    </form>
+
+    <!-- Appointments List -->
+    {% if appointments %}
+      {% for apt in appointments %}
+        <div class="card mb-3 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="d-flex align-items-start gap-3">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                  <i class="bi bi-calendar"></i>
+                </div>
+                <div>
+                  <h5 class="mb-1">{{ apt.patient_first_name }} {{ apt.patient_last_name }}</h5>
+                  <span class="status-badge 
+                    {% if apt.status == 'completed' %}status-completed
+                    {% elif apt.status == 'confirmed' %}status-confirmed
+                    {% elif apt.status == 'cancelled' %}status-cancelled
+                    {% elif apt.status == 'no-show' %}status-no-show
+                    {% else %}status-default{% endif %}">
+                    {{ apt.status }}
+                  </span>
+                  <div class="mt-2 text-muted small">
+                    <div><i class="bi bi-person"></i> Dr. {{ apt.doctor_first_name }} {{ apt.doctor_last_name }}</div>
+                    <div><i class="bi bi-clock"></i> {{ apt.appointment_date[11:16] }} ({{ apt.duration_minutes }} mins)</div>
+                    {% if apt.doctor_specialization %}
+                      <div><i class="bi bi-award"></i> {{ apt.doctor_specialization }}</div>
+                    {% endif %}
+                  </div>
+                  {% if apt.notes %}
+                    <div class="mt-2 bg-light p-2 rounded">
+                      <small>{{ apt.notes }}</small>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="d-flex flex-column gap-2">
+                {% if apt.status == 'scheduled' %}
+                  <button class="btn btn-sm btn-outline-primary">Confirm</button>
+                {% elif apt.status == 'confirmed' %}
+                  <button class="btn btn-sm btn-outline-success">Start</button>
+                {% endif %}
+                <a href="/appointments/{{ apt.id }}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="bi bi-calendar text-secondary fs-1"></i>
+        <p class="text-muted mt-3">
+          {% if selected_date %}
+            No appointments found for {{ selected_date }}
+          {% else %}
+            No appointments scheduled
+          {% endif %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+</body>
+</html>
+

@@ -1,256 +1,113 @@
-{% extends "layout.html" %}
-
-{% block content %}
-<h2>Doctor's Portal</h2>
-<form method="POST">
-    <label for="patient_id">Patient ID:</label>
-    <input type="number" id="patient_id" name="patient_id" required>
-    <label for="symptoms">Symptoms:</label>
-    <textarea id="symptoms" name="symptoms" required></textarea>
-    <label for="diagnosis">Diagnosis:</label>
-    <textarea id="diagnosis" name="diagnosis" required></textarea>
-    <button type="submit">Save Diagnosis</button>
-</form>
-{% endblock %}
-
-
-
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Doctor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <title>Doctor Interface | MediCore</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .sidebar {
+      height: 100vh;
+      background-color: #343a40;
+      color: white;
+    }
+    .sidebar a {
+      color: white;
+      text-decoration: none;
+      display: block;
+      padding: 12px 20px;
+      font-weight: 500;
+    }
+    .sidebar a:hover, .sidebar a.active {
+      background-color: #495057;
+      border-left: 4px solid #0d6efd;
+    }
+    .panel {
+      background-color: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .stethoscope-icon {
+      font-size: 48px;
+      color: #6c757d;
+    }
+  </style>
 </head>
 <body>
-    <h1>Doctor</h1>
-    <form action="{{ url_for('doctor') }}" method="post">
-        <label for="patient_id">Patient ID:</label>
-        <input type="text" id="patient_id" name="patient_id" required><br>
-        <label for="symptoms">Symptoms:</label>
-        <input type="text" id="symptoms" name="symptoms" required><br>
-        <label for="diagnosis">Diagnosis:</label>
-        <input type="text" id="diagnosis" name="diagnosis" required><br>
-        <button type="submit">Save Diagnosis</button>
-    </form>
-    <a href="{{ url_for('home') }}">Back to Home</a>
-</body>
-</html> -->
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-2 sidebar p-3">
+        <h4 class="mb-4">MediCore</h4>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('checkin') }}">Check-In</a>
+        <a href="{{ url_for('doctor') }}" class="active">Doctor Interface</a>
+        <a href="{{ url_for('admission') }}">Admissions</a>
+        <a href="{{ url_for('labor_delivery') }}">Labor & Delivery</a>
+        <a href="{{ url_for('lab') }}">Laboratory</a>
+        <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
+        <a href="{{ url_for('cashier') }}">Billing</a>
+        <a href="{{ url_for('patients') }}">Patients</a>
+        <a href="{{ url_for('appointments') }}">Appointments</a>
+        <a href="{{ url_for('medical_reports') }}">Medical Records</a>
+      </div>
 
+      <!-- Main Content -->
+      <div class="col-md-10 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2 class="fw-bold">Doctor Interface</h2>
+            <p class="text-muted">Examine patients, order tests, and prescribe treatments.</p>
+          </div>
+          <span class="text-muted">{{ current_date }}</span>
+        </div>
 
+        <div class="row g-4">
+          <!-- Today's Patients -->
+          <div class="col-md-6">
+            <div class="panel">
+              <h5 class="mb-3">Today's Patients</h5>
+              {% if patients %}
+                <ul class="list-group">
+                  {% for patient in patients %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ patient.name }}
+                    <a href="{{ url_for('examine_patient', patient_id=patient.id) }}" class="btn btn-sm btn-outline-primary">Examine</a>
+                  </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-muted">No patients scheduled for today.</p>
+              {% endif %}
+            </div>
+          </div>
 
+          <!-- Examination Prompt -->
+          <div class="col-md-6 text-center">
+            <div class="panel">
+              <i class="bi bi-stethoscope stethoscope-icon mb-3"></i>
+              <h5>Select a patient from the queue to begin examination</h5>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Diagnosis</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Patient Diagnosis</h1>
-    </header>
-    <form action="{{ url_for('doctor') }}" method="POST">
-        <label for="patient_id">Patient ID:</label>
-        <input type="number" id="patient_id" name="patient_id" required>
-
-        <label for="symptoms">Symptoms:</label>
-        <textarea id="symptoms" name="symptoms" required></textarea>
-
-        <label for="diagnosis">Diagnosis:</label>
-        <textarea id="diagnosis" name="diagnosis" required></textarea>
-
-        <button type="submit">Save Diagnosis</button>
-    </form>
-</body>
-</html> -->
-
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Diagnosis</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Patient Diagnosis</h1>
-    </header>
-    <form action="{{ url_for('main.doctor') }}" method="POST">
-        <label for="patient_id">Patient ID:</label>
-        <select id="patient_id" name="patient_id">
-            {% for patient in patients %}
-                <option value="{{ patient.id }}">{{ patient.name }}</option>
-            {% endfor %}
-        </select>
-        
-        <label for="doctor_id">Doctor ID:</label>
-        <select id="doctor_id" name="doctor_id">
-            {% for doctor in doctors %}
-                <option value="{{ doctor.id }}">{{ doctor.name }}</option>
-            {% endfor %}
-        </select>
-        
-        <label for="symptoms">Symptoms:</label>
-        <textarea id="symptoms" name="symptoms" required></textarea>
-        
-        <label for="diagnosis">Diagnosis:</label>
-        <textarea id="diagnosis" name="diagnosis" required></textarea>
-        
-        <button type="submit">Record Diagnosis</button>
-    </form>
-</body>
-</html> -->
-
-
-
-
-
-<!-- templates/doctor.html -->
-<!-- {% extends 'index.html' %}
-
-{% block content %}
-<h2>Doctor Consultation</h2>
-<form method="POST">
-    <label for="patient_id">Patient ID:</label>
-    <input type="number" id="patient_id" name="patient_id" required><br>
-
-    <label for="symptoms">Symptoms:</label>
-    <textarea id="symptoms" name="symptoms" required></textarea><br>
-
-    <label for="diagnosis">Diagnosis:</label>
-    <textarea id="diagnosis" name="diagnosis" required></textarea><br>
-
-    <button type="submit">Save Diagnosis</button>
-</form>
-{% endblock %} -->
-
-
-
-
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Diagnosis</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Patient Diagnosis</h1>
-    </header>
-    <form action="{{ url_for('doctor', id=patient[0]) }}" method="POST">
-        <h2>Patient: {{ patient[1] }}</h2>
-        <p>Age: {{ patient[2] }}</p>
-        <p>Gender: {{ patient[3] }}</p>
-        <p>Contact: {{ patient[4] }}</p>
-        <p>Address: {{ patient[5] }}</p>
-        
-        <label for="symptoms">Symptoms:</label>
-        <textarea name="symptoms" id="symptoms" placeholder="Enter symptoms" required>{{ patient[6] }}</textarea><br>
-    
-        <label for="diagnosis">Diagnosis:</label>
-        <textarea name="diagnosis" id="diagnosis" placeholder="Enter diagnosis" required>{{ patient[7] }}</textarea><br>
-    
-        <button type="submit">Update Diagnosis</button>
-    </form>
-    
-</body>
-</html> -->
-
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Doctor's Portal</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <h1>Doctor's Portal</h1>
-    <form method="POST">
-        <label for="patient_id">Patient</label>
-        <select id="patient_id" name="patient_id" required>
-            {% for patient in patients %}
-            <option value="{{ patient[0] }}">{{ patient[1] }}</option>
-            {% endfor %}
-        </select><br>
-
-        <label for="doctor_id">Doctor</label>
-        <select id="doctor_id" name="doctor_id" required>
-            {% for doctor in doctors %}
-            <option value="{{ doctor[0] }}">{{ doctor[1] }}</option>
-            {% endfor %}
-        </select><br>
-
-        <label for="symptoms">Symptoms</label>
-        <textarea id="symptoms" name="symptoms" required></textarea><br>
-
-        <label for="diagnosis">Diagnosis</label>
-        <textarea id="diagnosis" name="diagnosis" required></textarea><br>
-
-        <input type="submit" value="Record Diagnosis">
-    </form>
-    <a href="{{ url_for('home') }}">Back to Home</a>
-</body>
-</html>
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Diagnosis</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Patient Diagnosis</h1>
-    </header>
-    <form action="{{ url_for('doctor') }}" method="POST">
-        <label for="patient_id">Patient ID:</label>
-        <select id="patient_id" name="patient_id">
-            {% for patient in patients %}
-                <option value="{{ patient[0] }}">{{ patient[1] }}</option>
-            {% endfor %}
-        </select>
-        
-        <label for="doctor_id">Doctor ID:</label>
-        <select id="doctor_id" name="doctor_id">
-            {% for doctor in doctors %}
-                <option value="{{ doctor[0] }}">{{ doctor[1] }}</option>
-            {% endfor %}
-        </select>
-        
-        <label for="symptoms">Symptoms:</label>
-        <textarea id="symptoms" name="symptoms" required></textarea>
-        
-        <label for="diagnosis">Diagnosis:</label>
-        <textarea id="diagnosis" name="diagnosis" required></textarea>
-        
-        <button type="submit">Record Diagnosis</button>
-    </form>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 
 
 
 
- -->
+

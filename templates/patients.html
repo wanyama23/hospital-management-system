@@ -1,0 +1,10 @@
+<h2>Patient List</h2>
+<ul>
+  {% for patient in patients %}
+    <li>
+      <a href="{{ url_for('patient_detail', id=patient['id']) }}">
+        {{ patient['medical_record_number'] }} – {{ patient['first_name'] }} {{ patient['last_name'] }}
+      </a>
+    </li>
+  {% endfor %}
+</ul>

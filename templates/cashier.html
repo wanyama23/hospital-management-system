@@ -1,4 +1,33 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Billing</h2>
+  <form method="POST" class="p-4 border rounded bg-light">
+    <div class="mb-3">
+      <label for="patient_id" class="form-label">Patient ID</label>
+      <input type="number" name="patient_id" id="patient_id" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="bill_amount" class="form-label">Bill Amount</label>
+      <input type="number" name="bill_amount" id="bill_amount" class="form-control" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">Process Payment</button>
+  </form>
+{% endblock %}
+
+
+
+<!-- <h2>Billing</h2>
+<form method="POST">
+  <input type="number" name="patient_id" placeholder="Patient ID" required>
+  <input type="number" name="bill_amount" placeholder="Bill Amount" required>
+  <button type="submit">Process Payment</button>
+</form> -->
+
+
+<!-- {% extends "layout.html" %}
 
 {% block content %}
 <h2>Cashier</h2>
@@ -9,7 +38,7 @@
     <input type="number" id="bill_amount" name="bill_amount" required>
     <button type="submit">Save Bill</button>
 </form>
-{% endblock %}
+{% endblock %} -->
 
 
 
