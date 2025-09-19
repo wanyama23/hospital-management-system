@@ -4,7 +4,20 @@ from datetime import datetime
 import africastalking
 from flask import make_response
 from weasyprint import HTML
+from flask_login import LoginManager
+from flask_login import login_required
+from flask_login import LoginManager
 
+
+
+
+
+
+app = Flask(__name__)  # Your existing app setup
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'  # This should match your login route name
 
 
 
@@ -23,6 +36,44 @@ import africastalking
 # sms = africastalking.SMS
 # sms.send("New prescription for Patient XYZ", ["+254711732324"])
 
+login_manager.login_view = 'login'
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+
+        if user and check_password_hash(user['password'], password):
+            login_user(User(user))  # wrap in your User class
+            flash('Logged in successfully!')
+            return redirect(url_for('dashboard'))  # or wherever you want to land
+        else:
+            flash('Invalid credentials')
+
+    return render_template('login.html')
+
+
+# @login_manager.user_loader
+def load_user(user_id):
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return User(user) if user else None
+
+
+login_manager.login_view = 'user_login'
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully!')
+    return redirect(url_for('login'))
+
+
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 
@@ -31,6 +82,45 @@ def get_db():
     conn = sqlite3.connect('hospital.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+# login_manager = LoginManager()
+# login_manager.init_app(app)
+# login_manager.login_view = 'login'  # or whatever your login route is
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return User(user) if user else None  # Wrap in your User class
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    db = get_db()
+    return db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+class User:
+    def __init__(self, row):
+        self.id = row['id']
+        self.username = row['username']
+        self.role = row['role']
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)
+
 
 # ---------------- Dashboard ----------------
 @app.route('/')
@@ -307,18 +397,37 @@ def order_lab_test():
 #     return render_template('doctor.html')
 
 # ---------------- Laboratory ----------------
+from functools import wraps
+from flask import abort
+from flask_login import current_user
+
 @app.route('/lab', methods=['GET', 'POST'])
 def lab():
+    db = get_db()
+
     if request.method == 'POST':
         patient_id = request.form['patient_id']
         lab_results = request.form['lab_results']
-        db = get_db()
         db.execute("UPDATE patients SET lab_results = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                    (lab_results, patient_id))
         db.commit()
         flash('Lab results saved successfully!')
         return redirect(url_for('lab'))
-    return render_template('lab.html')
+
+    patients = db.execute("SELECT id, first_name || ' ' || last_name AS name FROM patients").fetchall()
+    recent_entries = db.execute("""
+        SELECT patients.first_name || ' ' || patients.last_name AS name,
+               patients.lab_results,
+               patients.updated_at
+        FROM patients
+        WHERE lab_results IS NOT NULL
+        ORDER BY updated_at DESC
+        LIMIT 10
+    """).fetchall()
+
+    current_date = datetime.now().strftime('%A, %B %d, %Y')
+    return render_template('lab.html', patients=patients, recent_entries=recent_entries, current_date=current_date)
+
 
 # ---------------- Pharmacy ----------------
 @app.route('/pharmacy', methods=['GET', 'POST'])
