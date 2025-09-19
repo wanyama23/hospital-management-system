@@ -310,12 +310,6 @@ def doctor():
     WHERE DATE(appointments.appointment_date) = DATE('now')
 """).fetchall()
 
-    # today_patients = db.execute("""
-    #     SELECT id, first_name || ' ' || last_name AS name 
-    #     FROM appointments 
-    #     JOIN patients ON appointments.patient_id = patients.id 
-    #     WHERE DATE(appointments.appointment_date) = DATE('now')
-    # """).fetchall()
 
     current_date = datetime.now().strftime('%A, %B %d, %Y')
     return render_template('doctor.html', patients=today_patients, current_date=current_date)
@@ -380,21 +374,6 @@ def order_lab_test():
     db.commit()
     flash('Lab test ordered successfully')
     return redirect(url_for('doctor'))
-
-
-# @app.route('/doctor', methods=['GET', 'POST'])
-# def doctor():
-#     if request.method == 'POST':
-#         patient_id = request.form['patient_id']
-#         symptoms = request.form['symptoms']
-#         diagnosis = request.form['diagnosis']
-#         db = get_db()
-#         db.execute("UPDATE patients SET symptoms = ?, diagnosis = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-#                    (symptoms, diagnosis, patient_id))
-#         db.commit()
-#         flash('Diagnosis saved successfully!')
-#         return redirect(url_for('doctor'))
-#     return render_template('doctor.html')
 
 # ---------------- Laboratory ----------------
 from functools import wraps
@@ -483,6 +462,64 @@ def fulfill_order():
     db.commit()
     flash('Order marked as fulfilled')
     return redirect(url_for('pharmacy_dashboard'))
+
+
+
+# .....................Labor.....................
+
+
+
+# ---------------- Labor & Delivery Dashboard ----------------
+@app.route('/labor_delivery')
+def labor_delivery_dashboard():
+    db = get_db()
+    records = db.execute('SELECT * FROM labor_records WHERE status="active"').fetchall()
+    delivered_today = db.execute('SELECT COUNT(*) FROM labor_records WHERE status="delivered" AND DATE(delivery_time)=DATE("now")').fetchone()[0]
+    avg_labor = db.execute('SELECT AVG(duration) FROM labor_records WHERE duration IS NOT NULL').fetchone()[0] or 0
+
+    metrics = {
+        'in_labor': len(records),
+        'delivered_today': delivered_today,
+        'maternity_beds': db.execute("SELECT COUNT(*) FROM beds WHERE ward = 'maternity'").fetchone()[0],
+        'avg_labor': round(avg_labor, 1)
+    }
+
+    return render_template('labor_delivery.html', metrics=metrics, records=records)
+
+# ---------------- Start Labor Record ----------------
+@app.route('/labor_delivery/start', methods=['POST'])
+def start_labor_record():
+    db = get_db()
+    patient_name = request.form['patient_name']
+    db.execute('INSERT INTO labor_records (patient_name, start_time, status) VALUES (?, ?, ?)',
+               (patient_name, datetime.now(), 'active'))
+    db.commit()
+    flash('Labor record started successfully!')
+    return redirect(url_for('labor_delivery_dashboard'))
+
+# ---------------- Complete Labor Record ----------------
+@app.route('/labor_delivery/complete', methods=['POST'])
+def complete_labor_record():
+    record_id = request.form['record_id']
+    db = get_db()
+    record = db.execute("SELECT start_time FROM labor_records WHERE id = ?", (record_id,)).fetchone()
+
+    if record:
+        start_time = datetime.fromisoformat(record['start_time'])
+        delivery_time = datetime.now()
+        duration = round((delivery_time - start_time).total_seconds() / 3600, 2)
+
+        db.execute("""
+            UPDATE labor_records
+            SET delivery_time = ?, duration = ?, status = 'delivered'
+            WHERE id = ?
+        """, (delivery_time, duration, record_id))
+        db.commit()
+        flash('Labor marked as delivered successfully!')
+
+    return redirect(url_for('labor_delivery_dashboard'))
+
+
 
 
 
