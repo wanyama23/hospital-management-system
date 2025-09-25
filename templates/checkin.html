@@ -50,7 +50,10 @@
         <a href="{{ url_for('checkin') }}" class="active">Check-In</a>
         <a href="{{ url_for('doctor') }}">Doctor</a>
         <a href="{{ url_for('admission') }}">Admissions</a>
-        <a href="{{ url_for('release') }}">Release</a>
+        {% for patient in patients %}
+  <a href="{{ url_for('release_summary', patient_id=patient.id) }}">Release</a>
+{% endfor %}
+
         <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
         <a href="{{ url_for('lab') }}">Lab</a>
         <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
@@ -93,11 +96,23 @@
           </div>
         </div>
 
-        <!-- Close with Mocha Button -->
-        <!-- <button class="btn btn-secondary mocha-btn">Close with Mocha</button> -->
+
       </div>
     </div>
   </div>
 </body>
 </html>
 
+
+
+
+
+        <!-- {% if generated_mrn and messages %}
+  <div class="alert alert-info mt-3">
+    <strong>Generated MRN:</strong> {{ generated_mrn }}
+  </div>
+{% endif %} -->
+
+
+        <!-- Close with Mocha Button -->
+        <!-- <button class="btn btn-secondary mocha-btn">Close with Mocha</button> -->

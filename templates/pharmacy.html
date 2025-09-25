@@ -47,7 +47,10 @@
         <a href="{{ url_for('checkin') }}">Check-In</a>
         <a href="{{ url_for('doctor') }}">Doctor</a>
         <a href="{{ url_for('admission') }}">Admissions</a>
-        <a href="{{ url_for('release') }}">Release</a>
+        {% for patient in patients %}
+  <a href="{{ url_for('release_summary', patient_id=patient.id) }}">Release</a>
+{% endfor %}
+
         <a href="{{ url_for('labor_delivery') }}">Labor & Delivery</a>
         <a href="{{ url_for('lab') }}">Lab</a>
         <a href="{{ url_for('pharmacy') }}" class="active">Pharmacy</a>

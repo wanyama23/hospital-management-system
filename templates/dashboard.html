@@ -58,7 +58,7 @@
               <a href="{{ url_for('checkin') }}">Check in</a>
               <a href="{{ url_for('doctor') }}">Doctor</a>
               <a href="{{ url_for('admission') }}">Admissions</a>
-              <a href="{{ url_for('release') }}">Release</a>
+              {# <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}">Release</a> #}
               <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
               <a href="{{ url_for('lab') }}">Lab</a>
               <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
@@ -117,12 +117,39 @@
             {% else %}
               <ul class="list-group">
                 {% for appointment in appointments %}
+  <!-- <tr>
+    <td>{{ appointment.patient_name }}</td>
+    <td>{{ appointment.date }}</td>
+    <td>
+      <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}" class="btn btn-sm btn-outline-primary">
+        Release
+      </a>
+    </td>
+  </tr>
+{% endfor %} -->
+
+                <!-- {% for appointment in appointments %}
                   <li class="list-group-item">
                     {{ appointment.patient_name }} with Dr. {{ appointment.doctor_name }} at {{ appointment.time }}
                   </li>
                 {% endfor %}
               </ul>
-            {% endif %}
+            {% endif %} -->
+            <!-- {% for appointment in appointments %} -->
+
+
+  <tr>
+    <td>{{ appointment.patient_name }}</td>
+    <td>{{ appointment.doctor_name }}</td>
+    <td>{{ appointment.time }}</td>
+    <td>
+      <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}" class="btn btn-sm btn-outline-primary">
+        Release
+      </a>
+    </td>
+  </tr>
+{% endfor %}
+
           </div>
 
           <div class="col-md-4">
@@ -141,6 +168,17 @@
       </div>
     </div>
   </div>
+
+  <h5>Doctor Queue</h5>
+<ul class="list-group">
+  {% for item in queue %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      {{ item.patient_name }}
+      <a href="{{ url_for('notify_doctor_ready', appointment_id=item.id) }}" class="btn btn-sm btn-success">Notify Doctor</a>
+    </li>
+  {% endfor %}
+</ul>
+
 </body>
 </html>
 >
