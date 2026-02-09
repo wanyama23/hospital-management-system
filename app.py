@@ -12,6 +12,32 @@ from flask_login import LoginManager
 
 import africastalking
 
+import sqlite3
+from flask import g, Flask
+
+app = Flask(__name__)
+DATABASE = "your_database.db"   # replace with your actual DB file path
+
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect(
+            DATABASE,
+            detect_types=sqlite3.PARSE_DECLTYPES,
+            check_same_thread=False,   # allows multi-threaded use
+            timeout=10                 # waits up to 10s if locked
+        )
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+
+
+
 # # Sandbox credentials
 # username = "sandbox"
 # api_key = "YOUR_SANDBOX_API_KEY"
@@ -227,15 +253,71 @@ def release_summary(patient_id):
 
     return render_template('release.html', patient=patient, treatments=treatments, labs=labs, prescriptions=prescriptions, billing=billing)
 
-# @app.route('/release')
-# def release():
-#     return render_template('release.html')
-
-# ---------------- Patient Registration ----------------
-# from datetime import datetime
-# import time
 
 
+from flask import Flask, render_template, request, redirect, url_for, flash
+from datetime import datetime
+import time
+
+# app = Flask(__name__)
+
+# def get_db():
+#     # your DB connection logic here
+#     pass
+
+@app.route('/checkin', methods=['GET', 'POST'])
+def checkin():
+    generated_mrn = f"MRN{int(time.time())}"
+
+    if request.method == 'POST':
+        card_number = request.form.get('card_number')
+        if not card_number:
+            flash('Please enter a card number.', 'danger')
+            return redirect(url_for('checkin'))
+
+        db = get_db()
+        patient = db.execute('SELECT * FROM patients WHERE card_number = ?', (card_number,)).fetchone()
+
+        if patient:
+            # Get last visit date
+            last_visit = db.execute("""
+                SELECT MAX(appointment_date) AS last_visit
+                FROM appointments
+                WHERE patient_id = ?
+            """, (patient['id'],)).fetchone()
+
+            # Get last prescription
+            last_prescription = db.execute("""
+                SELECT prescriptions, updated_at
+                FROM patients
+                WHERE id = ?
+            """, (patient['id'],)).fetchone()
+
+            # Queue patient if not already queued today
+            existing_appt = db.execute("""
+                SELECT id FROM appointments 
+                WHERE patient_id = ? AND DATE(appointment_date) = DATE('now')
+            """, (patient['id'],)).fetchone()
+
+            if not existing_appt:
+                db.execute("""
+                    INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
+                """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
+                db.commit()
+
+            return render_template(
+                'checkin_details.html',
+                patient=patient,
+                last_visit=last_visit['last_visit'] if last_visit else None,
+                last_prescription=last_prescription['prescriptions'] if last_prescription else None,
+                generated_mrn=generated_mrn
+            )
+        else:
+            flash(f"No patient found with card number: {card_number}. Please register.", 'warning')
+            return redirect(url_for('register'))
+
+    return render_template('checkin.html', generated_mrn=generated_mrn)
 
 # @app.route('/checkin', methods=['GET', 'POST'])
 # def checkin():
@@ -272,212 +354,11 @@ def release_summary(patient_id):
 #             flash(f"Patient found: {patient['first_name']} {patient['last_name']}", 'success')
 #             return redirect(url_for('doctor_dashboard', patient_id=patient['id']))
 #         else:
-#             flash(f"No patient found with card number: {card_number}", 'warning')
-#             return redirect(url_for('checkin'))
+#             flash(f"No patient found with card number: {card_number}. Please register.", 'warning')
+#             return redirect(url_for('register'))
 
 #     return render_template('checkin.html', generated_mrn=generated_mrn)
 
-
-
-# from datetime import datetime
-# import time
-
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
-#     db = get_db()
-
-#     if request.method == 'POST':
-#         data = request.form
-#         required_fields = ['first_name', 'last_name', 'age', 'gender', 'contact', 'address', 'card_number']
-#         missing = [field for field in required_fields if not data.get(field)]
-#         if missing:
-#             flash(f"Missing fields: {', '.join(missing)}", 'danger')
-#             return redirect(url_for('register'))
-
-#         try:
-#             age = int(data['age'])
-#             if age < 0 or age > 120:
-#                 flash('Please enter a valid age between 0 and 120.', 'warning')
-#                 return redirect(url_for('register'))
-#         except ValueError:
-#             flash('Age must be a number.', 'warning')
-#             return redirect(url_for('register'))
-
-#         # Check for duplicate contact or card number
-#         existing = db.execute("SELECT id FROM patients WHERE contact = ? OR card_number = ?", 
-#                               (data['contact'], data['card_number'])).fetchone()
-#         if existing:
-#             flash('A patient with this contact or card number already exists.', 'warning')
-#             return redirect(url_for('register'))
-
-#         full_name = f"{data['first_name']} {data['last_name']}"
-#         last = db.execute("SELECT MAX(id) FROM patients").fetchone()[0]
-#         next_id = (last or 0) + 1
-#         mrn = f"MRN{next_id:05d}"
-
-#         cursor = db.execute("""
-#             INSERT INTO patients (
-#                 medical_record_number, card_number, name, first_name, last_name, age, gender, contact, address,
-#                 is_active, created_at, updated_at
-#             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-#         """, (
-#             mrn,
-#             data['card_number'],
-#             full_name,
-#             data['first_name'],
-#             data['last_name'],
-#             age,
-#             data['gender'],
-#             data['contact'],
-#             data['address']
-#         ))
-#         db.commit()
-#         new_id = cursor.lastrowid
-
-#         try:
-#             sms.send(f"Welcome to Wauguzi Hospital. Your MRN is {mrn}", [data['contact']])
-#         except Exception as e:
-#             print("SMS failed:", e)
-
-#         flash('Patient registered successfully!', 'success')
-#         return redirect(url_for('print_card', patient_id=new_id))
-
-#     # GET request — generate MRN for display
-#     generated_mrn = f"MRN{int(time.time())}"
-#     return render_template('register.html', generated_mrn=generated_mrn, patient_card=patient_card)
-
-
-
-
-# # ......................printcard.............................
-# @app.route('/print_card/<int:patient_id>')
-# def print_card(patient_id):
-#     db = get_db()
-#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
-#     return render_template('patient_card.html', patient=patient)
-
-from flask import Flask, render_template, request, redirect, url_for, flash
-from datetime import datetime
-import time
-
-# app = Flask(__name__)
-
-# def get_db():
-#     # your DB connection logic here
-#     pass
-
-
-@app.route('/checkin', methods=['GET', 'POST'])
-def checkin():
-    generated_mrn = f"MRN{int(time.time())}"
-
-    if request.method == 'POST':
-        card_number = request.form.get('card_number')
-        if not card_number:
-            flash('Please enter a card number.', 'danger')
-            return redirect(url_for('checkin'))
-
-        db = get_db()
-        patient = db.execute('SELECT * FROM patients WHERE card_number = ?', (card_number,)).fetchone()
-
-        if patient:
-            # Check if already queued today
-            existing_appt = db.execute("""
-                SELECT id FROM appointments 
-                WHERE patient_id = ? AND DATE(appointment_date) = DATE('now')
-            """, (patient['id'],)).fetchone()
-
-            if not existing_appt:
-                db.execute("""
-                    INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
-                    VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
-                """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
-                db.commit()
-
-                try:
-                    sms.send(f"{patient['first_name']} {patient['last_name']} has been queued for doctor review.", [patient['contact']])
-                except Exception as e:
-                    print("SMS failed:", e)
-
-            flash(f"Patient found: {patient['first_name']} {patient['last_name']}", 'success')
-            return redirect(url_for('doctor_dashboard', patient_id=patient['id']))
-        else:
-            flash(f"No patient found with card number: {card_number}. Please register.", 'warning')
-            return redirect(url_for('register'))
-
-    return render_template('checkin.html', generated_mrn=generated_mrn)
-
-
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
-#     db = get_db()
-
-#     if request.method == 'POST':
-#         data = request.form
-#         required_fields = ['first_name', 'last_name', 'age', 'gender', 'contact', 'address', 'card_number']
-#         missing = [field for field in required_fields if not data.get(field)]
-#         if missing:
-#             flash(f"Missing fields: {', '.join(missing)}", 'danger')
-#             return redirect(url_for('register'))
-
-#         try:
-#             age = int(data['age'])
-#             if age < 0 or age > 120:
-#                 flash('Please enter a valid age between 0 and 120.', 'warning')
-#                 return redirect(url_for('register'))
-#         except ValueError:
-#             flash('Age must be a number.', 'warning')
-#             return redirect(url_for('register'))
-
-#         # Check for duplicate contact or card number
-#         existing = db.execute("SELECT id FROM patients WHERE contact = ? OR card_number = ?", 
-#                               (data['contact'], data['card_number'])).fetchone()
-#         if existing:
-#             flash('A patient with this contact or card number already exists.', 'warning')
-#             return redirect(url_for('checkin'))
-
-#         full_name = f"{data['first_name']} {data['last_name']}"
-#         last = db.execute("SELECT MAX(id) FROM patients").fetchone()[0]
-#         next_id = (last or 0) + 1
-#         mrn = f"MRN{next_id:05d}"
-
-#         cursor = db.execute("""
-#             INSERT INTO patients (
-#                 medical_record_number, card_number, name, first_name, last_name, age, gender, contact, address,
-#                 is_active, created_at, updated_at
-#             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-#         """, (
-#             mrn,
-#             data['card_number'],
-#             full_name,
-#             data['first_name'],
-#             data['last_name'],
-#             age,
-#             data['gender'],
-#             data['contact'],
-#             data['address']
-#         ))
-#         db.commit()
-#         new_id = cursor.lastrowid
-
-#         # Queue patient for doctor immediately
-#         db.execute("""
-#             INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
-#             VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
-#         """, (new_id, 1))  # Replace 1 with actual doctor_id logic
-#         db.commit()
-
-#         try:
-#             sms.send(f"Welcome to Wauguzi Hospital. Your MRN is {mrn}. You have been queued for doctor review.", [data['contact']])
-#         except Exception as e:
-#             print("SMS failed:", e)
-
-#         flash('Patient registered and queued successfully!', 'success')
-#         return redirect(url_for('doctor_dashboard', patient_id=new_id))
-
-#     # GET request — generate MRN for display
-#     generated_mrn = f"MRN{int(time.time())}"
-#     return render_template('register.html', generated_mrn=generated_mrn)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -628,22 +509,32 @@ def prescription_pdf(patient_id):
 
 
 @app.route('/lab/order', methods=['POST'])
+@app.route('/lab/order', methods=['GET', 'POST'])
 def order_lab_test():
-    patient_id = request.form['patient_id']
-    test_name = request.form['test_name']
     db = get_db()
-    db.execute("INSERT INTO lab_orders (patient_id, test_name, ordered_by) VALUES (?, ?, ?)",
-               (patient_id, test_name, 'Dr. Wanyama'))
+    if request.method == 'POST':
+        patient_id = request.form['patient_id']
+        test_name = request.form['test_name']
+    else:  # GET request
+        patient_id = request.args.get('patient_id')
+        test_name = request.args.get('test_name', 'General Test')
+
+    db.execute("""
+        INSERT INTO lab_orders (patient_id, test_name, ordered_by, created_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    """, (patient_id, test_name, 'Dr. Wanyama'))
     db.commit()
     flash('Lab test ordered successfully')
     return redirect(url_for('doctor'))
+
+
 
 
 @app.route('/doctor/<int:patient_id>')
 def doctor_dashboard(patient_id):
     db = get_db()
     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
-    return render_template('doctor_dashboard.html', patient=patient)
+    return render_template('doctor.html', patient=patient)
 
 
 # ....................notify.............................
@@ -687,22 +578,6 @@ def doctor_ready(appointment_id):
 
     return redirect(url_for('doctor'))
 
-
-# ....................send to pharmacy.............................
-# @app.route('/send_to_pharmacy/<int:patient_id>')
-# def send_to_pharmacy(patient_id):
-#     db = get_db()
-#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
-
-#     # Record pharmacy order
-#     db.execute("""
-#         INSERT INTO pharmacy_orders (patient_id, ordered_by, created_at, status)
-#         VALUES (?, ?, CURRENT_TIMESTAMP, 'pending')
-#     """, (patient_id, 'Dr. Wanyama'))
-#     db.commit()
-
-#     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", 'success')
-#     return redirect(url_for('doctor'))
 
 # Doctor sends patient to pharmacy
 @app.route('/send_to_pharmacy/<int:patient_id>')
@@ -750,7 +625,7 @@ def fulfill_order():
     """, (order_id,))
     db.commit()
     flash('Order marked as fulfilled')
-    return redirect(url_for('pharmacy_dashboard'))
+    return redirect(url_for('pharmacy'))
 
 
 # Doctor sends patient to lab
@@ -759,44 +634,477 @@ def send_to_lab(patient_id):
     test_name = request.form.get('test_name', 'General Test')
     db = get_db()
     db.execute("""
-        INSERT INTO lab_orders (patient_id, test_name, ordered_by, created_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO lab_orders (patient_id, test_name, ordered_by, created_at, status)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
     """, (patient_id, test_name, 'Dr. Wanyama'))
     db.commit()
     flash('Lab test ordered successfully')
     return redirect(url_for('doctor'))
 
 
+
+
 # Lab dashboard
-@app.route('/lab', methods=['GET', 'POST'])
+@app.route('/lab', methods=['GET'])
 def lab():
     db = get_db()
-
-    if request.method == 'POST':
-        patient_id = request.form['patient_id']
-        lab_results = request.form['lab_results']
-        db.execute("""
-            UPDATE patients
-            SET lab_results = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """, (lab_results, patient_id))
-        db.commit()
-        flash('Lab results saved successfully!')
-        return redirect(url_for('lab_dashboard'))
-
     orders = db.execute("""
         SELECT lo.id, p.medical_record_number,
                p.first_name || ' ' || p.last_name AS patient_name,
-               lo.test_name, lo.ordered_by, lo.created_at
+               lo.test_name, lo.ordered_by, lo.created_at, lo.status
         FROM lab_orders lo
         JOIN patients p ON lo.patient_id = p.id
+        WHERE lo.status = 'pending'
         ORDER BY lo.created_at DESC
     """).fetchall()
 
     current_date = datetime.now().strftime('%A, %B %d, %Y')
     return render_template('lab.html', orders=orders, current_date=current_date)
 
+@app.route('/lab/fulfill', methods=['POST'])
+def fulfill_lab_order():
+    order_id = request.form['order_id']
+    lab_results = request.form['lab_results']
+    db = get_db()
 
+    # Find patient linked to this order
+    patient_id = db.execute("SELECT patient_id FROM lab_orders WHERE id = ?", (order_id,)).fetchone()['patient_id']
+
+    # Save results in patient record
+    db.execute("""
+        UPDATE patients
+        SET lab_results = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (lab_results, patient_id))
+
+    # Mark lab order as fulfilled
+    db.execute("""
+        UPDATE lab_orders
+        SET status = 'fulfilled', fulfilled_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (order_id,))
+    db.commit()
+
+    flash('Lab results saved and patient sent back to doctor.')
+    return redirect(url_for('lab'))
+
+# @app.route('/lab', methods=['GET', 'POST'])
+# def lab():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         lab_results = request.form['lab_results']
+#         db.execute("""
+#             UPDATE patients
+#             SET lab_results = ?, updated_at = CURRENT_TIMESTAMP
+#             WHERE id = ?
+#         """, (lab_results, patient_id))
+#         db.commit()
+#         flash('Lab results saved successfully!')
+#         return redirect(url_for('lab_dashboard'))
+
+#     orders = db.execute("""
+#         SELECT lo.id, p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                lo.test_name, lo.ordered_by, lo.created_at
+#         FROM lab_orders lo
+#         JOIN patients p ON lo.patient_id = p.id
+#         ORDER BY lo.created_at DESC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('lab.html', orders=orders, current_date=current_date)
+
+
+
+
+
+
+
+
+# .....................Labor.....................
+
+
+
+# ---------------- Labor & Delivery Dashboard ----------------
+@app.route('/labor_delivery')
+def labor_delivery_dashboard():
+    db = get_db()
+    records = db.execute('SELECT * FROM labor_records WHERE status="active"').fetchall()
+    delivered_today = db.execute('SELECT COUNT(*) FROM labor_records WHERE status="delivered" AND DATE(delivery_time)=DATE("now")').fetchone()[0]
+    avg_labor = db.execute('SELECT AVG(duration) FROM labor_records WHERE duration IS NOT NULL').fetchone()[0] or 0
+
+    metrics = {
+        'in_labor': len(records),
+        'delivered_today': delivered_today,
+        'maternity_beds': db.execute("SELECT COUNT(*) FROM beds WHERE ward = 'maternity'").fetchone()[0],
+        'avg_labor': round(avg_labor, 1)
+    }
+
+    return render_template('labor_delivery.html', metrics=metrics, records=records)
+
+# ---------------- Start Labor Record ----------------
+@app.route('/labor_delivery/start', methods=['POST'])
+def start_labor_record():
+    db = get_db()
+    patient_name = request.form['patient_name']
+    db.execute('INSERT INTO labor_records (patient_name, start_time, status) VALUES (?, ?, ?)',
+               (patient_name, datetime.now(), 'active'))
+    db.commit()
+    flash('Labor record started successfully!')
+    return redirect(url_for('labor_delivery_dashboard'))
+
+# ---------------- Complete Labor Record ----------------
+@app.route('/labor_delivery/complete', methods=['POST'])
+def complete_labor_record():
+    record_id = request.form['record_id']
+    db = get_db()
+    record = db.execute("SELECT start_time FROM labor_records WHERE id = ?", (record_id,)).fetchone()
+
+    if record:
+        start_time = datetime.fromisoformat(record['start_time'])
+        delivery_time = datetime.now()
+        duration = round((delivery_time - start_time).total_seconds() / 3600, 2)
+
+        db.execute("""
+            UPDATE labor_records
+            SET delivery_time = ?, duration = ?, status = 'delivered'
+            WHERE id = ?
+        """, (delivery_time, duration, record_id))
+        db.commit()
+        flash('Labor marked as delivered successfully!')
+
+    return redirect(url_for('labor_delivery_dashboard'))
+
+# ---------------- Billing ----------------
+@app.route('/cashier', methods=['GET', 'POST'])
+def cashier():
+    if request.method == 'POST':
+        patient_id = request.form['patient_id']
+        bill_amount = request.form['bill_amount']
+        db = get_db()
+        db.execute("UPDATE patients SET bill_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                   (bill_amount, patient_id))
+        db.commit()
+        flash('Bill paid successfully!')
+        return redirect(url_for('cashier'))
+    return render_template('cashier.html')
+
+
+@app.route('/patient/<int:id>')
+def patient_detail(id):
+    db = get_db()
+    patient = db.execute("SELECT * FROM patients WHERE id = ?", (id,)).fetchone()
+    db.close()
+
+    if not patient:
+        flash("Patient not found.", "danger")
+        return redirect(url_for('checkin'))
+
+    return render_template('patient_detail.html', patient=patient)
+
+
+# ---------------- Patient List ----------------
+@app.route('/patients')
+def patients():
+    db = get_db()
+    patients = db.execute("SELECT * FROM patients WHERE is_active = 1 ORDER BY created_at DESC").fetchall()
+    return render_template('patients.html', patients=patients)
+
+# ---------------- Additional Sidebar Routes ----------------
+@app.route('/admission')
+def admission():
+    return render_template('admission.html')
+
+@app.route('/labor_delivery')
+def labor_delivery():
+    return render_template('labor_delivery.html')
+
+@app.route('/appointments')
+def appointments():
+    db = get_db()
+    appointments = db.execute("""
+        SELECT a.*, 
+               p.first_name || ' ' || p.last_name AS patient_name,
+               d.first_name || ' ' || d.last_name AS doctor_name,
+               strftime('%H:%M', a.appointment_date) AS time
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        JOIN doctors d ON a.doctor_id = d.id
+        ORDER BY a.appointment_date ASC
+    """).fetchall()
+    return render_template('appointments.html', appointments=appointments)
+
+@app.route('/medical_reports')
+def medical_reports():
+    return render_template('medical_reports.html')
+
+# ---------------- Search ----------------
+@app.route('/search', methods=['GET', 'POST'])
+def search():
+    db = get_db()
+    results = []
+
+    if request.method == 'POST':
+        query = request.form.get('query', '').strip()
+        status = request.form.get('status', '').strip()
+        date = request.form.get('date', '').strip()
+
+        sql = "SELECT * FROM patients WHERE 1=1"
+        params = []
+
+        if query:
+            sql += " AND (first_name LIKE ? OR last_name LIKE ? OR contact LIKE ? OR medical_record_number LIKE ?)"
+            params += [f'%{query}%'] * 4
+
+        if status:
+            sql += " AND admission_status = ?"
+            params.append(status)
+
+        if date:
+            sql += " AND DATE(created_at) = ?"
+            params.append(date)
+
+        sql += " ORDER BY created_at DESC"
+        results = db.execute(sql, params).fetchall()
+
+    return render_template('search.html', results=results)
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)
+
+
+# @app.route('/send_to_lab/<int:patient_id>', methods=['POST'])
+# def send_to_lab(patient_id):
+#     test_name = request.form.get('test_name', 'General Test')
+#     db = get_db()
+#     db.execute("""
+#         INSERT INTO lab_orders (patient_id, test_name, ordered_by, created_at)
+#         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+#     """, (patient_id, test_name, 'Dr. Wanyama'))
+#     db.commit()
+#     flash('Lab test ordered successfully')
+#     return redirect(url_for('doctor'))
+
+
+# @app.route('/release')
+# def release():
+#     return render_template('release.html')
+
+# ---------------- Patient Registration ----------------
+# from datetime import datetime
+# import time
+
+
+
+# @app.route('/checkin', methods=['GET', 'POST'])
+# def checkin():
+#     generated_mrn = f"MRN{int(time.time())}"
+
+#     if request.method == 'POST':
+#         card_number = request.form.get('card_number')
+#         if not card_number:
+#             flash('Please enter a card number.', 'danger')
+#             return redirect(url_for('checkin'))
+
+#         db = get_db()
+#         patient = db.execute('SELECT * FROM patients WHERE card_number = ?', (card_number,)).fetchone()
+
+#         if patient:
+#             # Check if already queued today
+#             existing_appt = db.execute("""
+#                 SELECT id FROM appointments 
+#                 WHERE patient_id = ? AND DATE(appointment_date) = DATE('now')
+#             """, (patient['id'],)).fetchone()
+
+#             if not existing_appt:
+#                 db.execute("""
+#                     INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
+#                     VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
+#                 """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
+#                 db.commit()
+
+#                 try:
+#                     sms.send(f"{patient['first_name']} {patient['last_name']} has been queued for doctor review.", [patient['contact']])
+#                 except Exception as e:
+#                     print("SMS failed:", e)
+
+#             flash(f"Patient found: {patient['first_name']} {patient['last_name']}", 'success')
+#             return redirect(url_for('doctor_dashboard', patient_id=patient['id']))
+#         else:
+#             flash(f"No patient found with card number: {card_number}", 'warning')
+#             return redirect(url_for('checkin'))
+
+#     return render_template('checkin.html', generated_mrn=generated_mrn)
+
+
+
+# from datetime import datetime
+# import time
+
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         data = request.form
+#         required_fields = ['first_name', 'last_name', 'age', 'gender', 'contact', 'address', 'card_number']
+#         missing = [field for field in required_fields if not data.get(field)]
+#         if missing:
+#             flash(f"Missing fields: {', '.join(missing)}", 'danger')
+#             return redirect(url_for('register'))
+
+#         try:
+#             age = int(data['age'])
+#             if age < 0 or age > 120:
+#                 flash('Please enter a valid age between 0 and 120.', 'warning')
+#                 return redirect(url_for('register'))
+#         except ValueError:
+#             flash('Age must be a number.', 'warning')
+#             return redirect(url_for('register'))
+
+#         # Check for duplicate contact or card number
+#         existing = db.execute("SELECT id FROM patients WHERE contact = ? OR card_number = ?", 
+#                               (data['contact'], data['card_number'])).fetchone()
+#         if existing:
+#             flash('A patient with this contact or card number already exists.', 'warning')
+#             return redirect(url_for('register'))
+
+#         full_name = f"{data['first_name']} {data['last_name']}"
+#         last = db.execute("SELECT MAX(id) FROM patients").fetchone()[0]
+#         next_id = (last or 0) + 1
+#         mrn = f"MRN{next_id:05d}"
+
+#         cursor = db.execute("""
+#             INSERT INTO patients (
+#                 medical_record_number, card_number, name, first_name, last_name, age, gender, contact, address,
+#                 is_active, created_at, updated_at
+#             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+#         """, (
+#             mrn,
+#             data['card_number'],
+#             full_name,
+#             data['first_name'],
+#             data['last_name'],
+#             age,
+#             data['gender'],
+#             data['contact'],
+#             data['address']
+#         ))
+#         db.commit()
+#         new_id = cursor.lastrowid
+
+#         try:
+#             sms.send(f"Welcome to Wauguzi Hospital. Your MRN is {mrn}", [data['contact']])
+#         except Exception as e:
+#             print("SMS failed:", e)
+
+#         flash('Patient registered successfully!', 'success')
+#         return redirect(url_for('print_card', patient_id=new_id))
+
+#     # GET request — generate MRN for display
+#     generated_mrn = f"MRN{int(time.time())}"
+#     return render_template('register.html', generated_mrn=generated_mrn, patient_card=patient_card)
+
+
+
+
+# # ......................printcard.............................
+# @app.route('/print_card/<int:patient_id>')
+# def print_card(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     return render_template('patient_card.html', patient=patient)
+
+
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         data = request.form
+#         required_fields = ['first_name', 'last_name', 'age', 'gender', 'contact', 'address', 'card_number']
+#         missing = [field for field in required_fields if not data.get(field)]
+#         if missing:
+#             flash(f"Missing fields: {', '.join(missing)}", 'danger')
+#             return redirect(url_for('register'))
+
+#         try:
+#             age = int(data['age'])
+#             if age < 0 or age > 120:
+#                 flash('Please enter a valid age between 0 and 120.', 'warning')
+#                 return redirect(url_for('register'))
+#         except ValueError:
+#             flash('Age must be a number.', 'warning')
+#             return redirect(url_for('register'))
+
+#         # Check for duplicate contact or card number
+#         existing = db.execute("SELECT id FROM patients WHERE contact = ? OR card_number = ?", 
+#                               (data['contact'], data['card_number'])).fetchone()
+#         if existing:
+#             flash('A patient with this contact or card number already exists.', 'warning')
+#             return redirect(url_for('checkin'))
+
+#         full_name = f"{data['first_name']} {data['last_name']}"
+#         last = db.execute("SELECT MAX(id) FROM patients").fetchone()[0]
+#         next_id = (last or 0) + 1
+#         mrn = f"MRN{next_id:05d}"
+
+#         cursor = db.execute("""
+#             INSERT INTO patients (
+#                 medical_record_number, card_number, name, first_name, last_name, age, gender, contact, address,
+#                 is_active, created_at, updated_at
+#             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+#         """, (
+#             mrn,
+#             data['card_number'],
+#             full_name,
+#             data['first_name'],
+#             data['last_name'],
+#             age,
+#             data['gender'],
+#             data['contact'],
+#             data['address']
+#         ))
+#         db.commit()
+#         new_id = cursor.lastrowid
+
+#         # Queue patient for doctor immediately
+#         db.execute("""
+#             INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
+#             VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
+#         """, (new_id, 1))  # Replace 1 with actual doctor_id logic
+#         db.commit()
+
+#         try:
+#             sms.send(f"Welcome to Wauguzi Hospital. Your MRN is {mrn}. You have been queued for doctor review.", [data['contact']])
+#         except Exception as e:
+#             print("SMS failed:", e)
+
+#         flash('Patient registered and queued successfully!', 'success')
+#         return redirect(url_for('doctor_dashboard', patient_id=new_id))
+
+#     # GET request — generate MRN for display
+#     generated_mrn = f"MRN{int(time.time())}"
+#     return render_template('register.html', generated_mrn=generated_mrn)
+
+
+# ....................send to pharmacy.............................
+# @app.route('/send_to_pharmacy/<int:patient_id>')
+# def send_to_pharmacy(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+
+#     # Record pharmacy order
+#     db.execute("""
+#         INSERT INTO pharmacy_orders (patient_id, ordered_by, created_at, status)
+#         VALUES (?, ?, CURRENT_TIMESTAMP, 'pending')
+#     """, (patient_id, 'Dr. Wanyama'))
+#     db.commit()
+
+#     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", 'success')
+#     return redirect(url_for('doctor'))
 
 
 # @app.route('/doctor', methods=['GET', 'POST'])
@@ -1024,160 +1332,15 @@ def lab():
 #     flash('Order marked as fulfilled')
 #     return redirect(url_for('pharmacy_dashboard'))
 
-
-
-# .....................Labor.....................
-
-
-
-# ---------------- Labor & Delivery Dashboard ----------------
-@app.route('/labor_delivery')
-def labor_delivery_dashboard():
-    db = get_db()
-    records = db.execute('SELECT * FROM labor_records WHERE status="active"').fetchall()
-    delivered_today = db.execute('SELECT COUNT(*) FROM labor_records WHERE status="delivered" AND DATE(delivery_time)=DATE("now")').fetchone()[0]
-    avg_labor = db.execute('SELECT AVG(duration) FROM labor_records WHERE duration IS NOT NULL').fetchone()[0] or 0
-
-    metrics = {
-        'in_labor': len(records),
-        'delivered_today': delivered_today,
-        'maternity_beds': db.execute("SELECT COUNT(*) FROM beds WHERE ward = 'maternity'").fetchone()[0],
-        'avg_labor': round(avg_labor, 1)
-    }
-
-    return render_template('labor_delivery.html', metrics=metrics, records=records)
-
-# ---------------- Start Labor Record ----------------
-@app.route('/labor_delivery/start', methods=['POST'])
-def start_labor_record():
-    db = get_db()
-    patient_name = request.form['patient_name']
-    db.execute('INSERT INTO labor_records (patient_name, start_time, status) VALUES (?, ?, ?)',
-               (patient_name, datetime.now(), 'active'))
-    db.commit()
-    flash('Labor record started successfully!')
-    return redirect(url_for('labor_delivery_dashboard'))
-
-# ---------------- Complete Labor Record ----------------
-@app.route('/labor_delivery/complete', methods=['POST'])
-def complete_labor_record():
-    record_id = request.form['record_id']
-    db = get_db()
-    record = db.execute("SELECT start_time FROM labor_records WHERE id = ?", (record_id,)).fetchone()
-
-    if record:
-        start_time = datetime.fromisoformat(record['start_time'])
-        delivery_time = datetime.now()
-        duration = round((delivery_time - start_time).total_seconds() / 3600, 2)
-
-        db.execute("""
-            UPDATE labor_records
-            SET delivery_time = ?, duration = ?, status = 'delivered'
-            WHERE id = ?
-        """, (delivery_time, duration, record_id))
-        db.commit()
-        flash('Labor marked as delivered successfully!')
-
-    return redirect(url_for('labor_delivery_dashboard'))
-
-# ---------------- Billing ----------------
-@app.route('/cashier', methods=['GET', 'POST'])
-def cashier():
-    if request.method == 'POST':
-        patient_id = request.form['patient_id']
-        bill_amount = request.form['bill_amount']
-        db = get_db()
-        db.execute("UPDATE patients SET bill_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                   (bill_amount, patient_id))
-        db.commit()
-        flash('Bill paid successfully!')
-        return redirect(url_for('cashier'))
-    return render_template('cashier.html')
-
-
-@app.route('/patient/<int:id>')
-def patient_detail(id):
-    db = get_db()
-    patient = db.execute("SELECT * FROM patients WHERE id = ?", (id,)).fetchone()
-    db.close()
-
-    if not patient:
-        flash("Patient not found.", "danger")
-        return redirect(url_for('checkin'))
-
-    return render_template('patient_detail.html', patient=patient)
-
-
-# ---------------- Patient List ----------------
-@app.route('/patients')
-def patients():
-    db = get_db()
-    patients = db.execute("SELECT * FROM patients WHERE is_active = 1 ORDER BY created_at DESC").fetchall()
-    return render_template('patients.html', patients=patients)
-
-# ---------------- Additional Sidebar Routes ----------------
-@app.route('/admission')
-def admission():
-    return render_template('admission.html')
-
-@app.route('/labor_delivery')
-def labor_delivery():
-    return render_template('labor_delivery.html')
-
-@app.route('/appointments')
-def appointments():
-    db = get_db()
-    appointments = db.execute("""
-        SELECT a.*, 
-               p.first_name || ' ' || p.last_name AS patient_name,
-               d.first_name || ' ' || d.last_name AS doctor_name,
-               strftime('%H:%M', a.appointment_date) AS time
-        FROM appointments a
-        JOIN patients p ON a.patient_id = p.id
-        JOIN doctors d ON a.doctor_id = d.id
-        ORDER BY a.appointment_date ASC
-    """).fetchall()
-    return render_template('appointments.html', appointments=appointments)
-
-@app.route('/medical_reports')
-def medical_reports():
-    return render_template('medical_reports.html')
-
-# ---------------- Search ----------------
-@app.route('/search', methods=['GET', 'POST'])
-def search():
-    db = get_db()
-    results = []
-
-    if request.method == 'POST':
-        query = request.form.get('query', '').strip()
-        status = request.form.get('status', '').strip()
-        date = request.form.get('date', '').strip()
-
-        sql = "SELECT * FROM patients WHERE 1=1"
-        params = []
-
-        if query:
-            sql += " AND (first_name LIKE ? OR last_name LIKE ? OR contact LIKE ? OR medical_record_number LIKE ?)"
-            params += [f'%{query}%'] * 4
-
-        if status:
-            sql += " AND admission_status = ?"
-            params.append(status)
-
-        if date:
-            sql += " AND DATE(created_at) = ?"
-            params.append(date)
-
-        sql += " ORDER BY created_at DESC"
-        results = db.execute(sql, params).fetchall()
-
-    return render_template('search.html', results=results)
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)
-
-
+# def order_lab_test():
+#     patient_id = request.form['patient_id']
+#     test_name = request.form['test_name']
+#     db = get_db()
+#     db.execute("INSERT INTO lab_orders (patient_id, test_name, ordered_by) VALUES (?, ?, ?)",
+#                (patient_id, test_name, 'Dr. Wanyama'))
+#     db.commit()
+#     flash('Lab test ordered successfully')
+#     return redirect(url_for('doctor'))
 
 
 
