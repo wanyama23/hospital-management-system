@@ -6,6 +6,8 @@
   <title>Patient Check-In | MediCore</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
   <style>
     body {
       background-color: #f8f9fa;
@@ -44,23 +46,20 @@
   <div class="container-fluid">
     <div class="row">
       <!-- Sidebar -->
-      <div class="col-md-2 sidebar p-3">
+       <div class="col-md-2 sidebar p-3">
         <h4 class="mb-4">MediCore</h4>
-        <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('checkin') }}" class="active">Check-In</a>
-        <a href="{{ url_for('doctor') }}">Doctor</a>
-        <a href="{{ url_for('admission') }}">Admissions</a>
-        {% for patient in patients %}
-  <a href="{{ url_for('release_summary', patient_id=patient.id) }}">Release</a>
-{% endfor %}
-
-        <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
-        <a href="{{ url_for('lab') }}">Lab</a>
-        <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
-        <a href="{{ url_for('cashier') }}">Cashier</a>
-        <a href="{{ url_for('patients') }}">Patients</a>
-        <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
+        <a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+        <a href="{{ url_for('checkin') }}" class="active"><i class="fas fa-user-check me-2"></i>Check in</a>
+        <a href="{{ url_for('doctor') }}"><i class="fas fa-user-md me-2"></i>Doctor</a>
+        <a href="{{ url_for('admission') }}"><i class="fas fa-procedures me-2"></i>Admissions</a>
+        <a href="{{ url_for('labor_delivery') }}"><i class="fas fa-baby me-2"></i>Labor & Delivery</a>
+        <a href="{{ url_for('lab') }}"><i class="fas fa-flask me-2"></i>Lab</a>
+        <a href="{{ url_for('pharmacy') }}"><i class="fas fa-pills me-2"></i>Pharmacy</a>
+        <a href="{{ url_for('cashier') }}"><i class="fas fa-cash-register me-2"></i>Cashier</a>
+        <a href="{{ url_for('patients') }}"><i class="fas fa-users me-2"></i>Patients</a>
+        <a href="{{ url_for('medical_reports') }}"><i class="fas fa-file-medical me-2"></i>Medical Reports</a>
       </div>
+      
 
       <!-- Main Content -->
       <div class="col-md-10 p-4 position-relative">
@@ -116,3 +115,23 @@
 
         <!-- Close with Mocha Button -->
         <!-- <button class="btn btn-secondary mocha-btn">Close with Mocha</button> -->
+
+
+
+        <!-- <div class="col-md-2 sidebar p-3">
+        <h4 class="mb-4">MediCore</h4>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('checkin') }}" class="active">Check-In</a>
+        <a href="{{ url_for('doctor') }}">Doctor</a>
+        <a href="{{ url_for('admission') }}">Admissions</a>
+        {% for patient in patients %}
+  <a href="{{ url_for('release_summary', patient_id=patient.id) }}">Release</a>
+{% endfor %}
+
+        <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
+        <a href="{{ url_for('lab') }}">Lab</a>
+        <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
+        <a href="{{ url_for('cashier') }}">Cashier</a>
+        <a href="{{ url_for('patients') }}">Patients</a>
+        <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
+      </div> -->

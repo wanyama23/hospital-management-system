@@ -5,9 +5,10 @@
   <title>Pharmacy Dashboard | MediCore</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Bootstrap CSS -->
+  <!-- Bootstrap CSS & Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
   <style>
     body {
@@ -43,26 +44,22 @@
       <!-- Sidebar -->
       <div class="col-md-2 sidebar p-3">
         <h4 class="mb-4">MediCore</h4>
-        <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('checkin') }}">Check-In</a>
-        <a href="{{ url_for('doctor') }}">Doctor</a>
-        <a href="{{ url_for('admission') }}">Admissions</a>
-        {% for patient in patients %}
-  <a href="{{ url_for('release_summary', patient_id=patient.id) }}">Release</a>
-{% endfor %}
-
-        <a href="{{ url_for('labor_delivery') }}">Labor & Delivery</a>
-        <a href="{{ url_for('lab') }}">Lab</a>
-        <a href="{{ url_for('pharmacy') }}" class="active">Pharmacy</a>
-        <a href="{{ url_for('cashier') }}">Cashier</a>
-        <a href="{{ url_for('patients') }}">Patients</a>
-        <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
+        <a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+        <a href="{{ url_for('checkin') }}"><i class="fas fa-user-check me-2"></i>Check in</a>
+        <a href="{{ url_for('doctor') }}"><i class="fas fa-user-md me-2"></i>Doctor</a>
+        <a href="{{ url_for('admission') }}"><i class="fas fa-procedures me-2"></i>Admissions</a>
+        <a href="{{ url_for('labor_delivery') }}"><i class="fas fa-baby me-2"></i>Labor & Delivery</a>
+        <a href="{{ url_for('lab') }}"><i class="fas fa-flask me-2"></i>Lab</a>
+        <a href="{{ url_for('pharmacy') }}" class="active"><i class="fas fa-pills me-2"></i>Pharmacy</a>
+        <a href="{{ url_for('cashier') }}"><i class="fas fa-cash-register me-2"></i>Cashier</a>
+        <a href="{{ url_for('patients') }}"><i class="fas fa-users me-2"></i>Patients</a>
+        <a href="{{ url_for('medical_reports') }}"><i class="fas fa-file-medical me-2"></i>Medical Reports</a>
       </div>
 
       <!-- Main Content -->
       <div class="col-md-10 p-4 position-relative">
         <div class="d-flex justify-content-between align-items-center mb-4">
-          <h2 class="fw-bold">📦 Pharmacy Orders</h2>
+          <h2 class="fw-bold">📦 Pharmacy Dashboard</h2>
           <span class="text-muted">{{ current_date }}</span>
         </div>
 
@@ -80,39 +77,49 @@
             <table class="table table-striped table-bordered align-middle">
               <thead class="table-dark">
                 <tr>
+                  <th>MRN</th>
                   <th>Patient</th>
                   <th>Prescription</th>
                   <th>Ordered By</th>
+                  <th>Sent At</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {% for order in orders %}
-                <tr>
-                  <td>{{ order.patient_name }}</td>
-                  <td>{{ order.prescription }}</td>
-                  <td>{{ order.ordered_by }}</td>
-                  <td>
-                    {% if order.status == 'fulfilled' %}
-                      <span class="badge bg-success">Fulfilled</span><br>
-                      <small>By {{ order.fulfilled_by }}<br>{{ order.fulfilled_at }}</small>
-                    {% else %}
-                      <span class="badge bg-warning text-dark">Pending</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if order.status != 'fulfilled' %}
-                    <form method="POST" action="{{ url_for('fulfill_order') }}">
-                      <input type="hidden" name="order_id" value="{{ order.id }}">
-                      <button type="submit" class="btn btn-sm btn-success">Mark Fulfilled</button>
-                    </form>
-                    {% else %}
-                    <i class="bi bi-check-circle text-success"></i>
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
+                {% if orders %}
+                  {% for order in orders %}
+                  <tr>
+                    <td>{{ order.medical_record_number }}</td>
+                    <td>{{ order.patient_name }}</td>
+                    <td>{{ order.prescription }}</td>
+                    <td>{{ order.ordered_by }}</td>
+                    <td>{{ order.created_at }}</td>
+                    <td>
+                      {% if order.status == 'fulfilled' %}
+                        <span class="badge bg-success">Fulfilled</span><br>
+                        <small>By {{ order.fulfilled_by }}<br>{{ order.fulfilled_at }}</small>
+                      {% else %}
+                        <span class="badge bg-warning text-dark">Pending</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if order.status != 'fulfilled' %}
+                      <form method="POST" action="{{ url_for('fulfill_order') }}">
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <button type="submit" class="btn btn-sm btn-success">Mark Fulfilled</button>
+                      </form>
+                      {% else %}
+                      <i class="bi bi-check-circle text-success"></i>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="7" class="text-center text-muted">No patients currently in pharmacy queue.</td>
+                  </tr>
+                {% endif %}
               </tbody>
             </table>
           </div>
@@ -125,3 +132,36 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <!-- <div class="col-md-2 sidebar p-3">
+        <h4 class="mb-4">MediCore</h4>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('checkin') }}">Check-In</a>
+        <a href="{{ url_for('doctor') }}">Doctor</a>
+        <a href="{{ url_for('admission') }}">Admissions</a>
+        {% for patient in patients %}
+  <a href="{{ url_for('release_summary', patient_id=patient.id) }}">Release</a>
+{% endfor %}
+
+        <a href="{{ url_for('labor_delivery') }}">Labor & Delivery</a>
+        <a href="{{ url_for('lab') }}">Lab</a>
+        <a href="{{ url_for('pharmacy') }}" class="active">Pharmacy</a>
+        <a href="{{ url_for('cashier') }}">Cashier</a>
+        <a href="{{ url_for('patients') }}">Patients</a>
+        <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
+      </div> -->

@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <title>MediCore Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #f8f9fa;
-    }
+    body { background-color: #f8f9fa; }
     .sidebar {
       height: 100vh;
       background-color: #343a40;
@@ -24,28 +23,13 @@
       background-color: #495057;
       border-left: 4px solid #0d6efd;
     }
-    .card-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-    .quick-stats {
-      background-color: #fff;
-      border: 1px solid #dee2e6;
-      padding: 20px;
-      border-radius: 12px;
+    .card-title { font-size: 0.9rem; font-weight: 600; }
+    .metric-card {
+      border-left: 5px solid #0d6efd;
       box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
-    .subtitle {
-      font-size: 1rem;
-      color: #6c757d;
-      margin-bottom: 20px;
-    }
-    .mocha-btn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1000;
-    }
+    .subtitle { font-size: 1rem; color: #6c757d; margin-bottom: 20px; }
+    .time-filters button { margin-right: 10px; }
   </style>
 </head>
 <body>
@@ -54,38 +38,36 @@
       <!-- Sidebar -->
       <div class="col-md-2 sidebar p-3">
         <h4 class="mb-4">MediCore</h4>
-        <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
-              <a href="{{ url_for('checkin') }}">Check in</a>
-              <a href="{{ url_for('doctor') }}">Doctor</a>
-              <a href="{{ url_for('admission') }}">Admissions</a>
-              {# <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}">Release</a> #}
-              <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
-              <a href="{{ url_for('lab') }}">Lab</a>
-              <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
-              <a href="{{ url_for('cashier') }}">Cashier</a>
-              <a href="{{ url_for('patients') }}">Patients</a>
-              <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
-
-        <!-- <a href="#" class="active">Dashboard</a>
-        <a href="#">Check In</a>
-        <a href="#">Doctor</a>
-        <a href="#">Admissions</a>
-        <a href="#">Release</a>
-        <a href="#">Labor</a>
-        <a href="#">Laboratory</a>
-        <a href="#">Pharmacy</a>
-        <a href="#">Billing</a>
-        <a href="#">Patients</a>
-        <a href="#">Medical Records</a> -->
+        <a href="{{ url_for('dashboard') }}" class="active"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+        <a href="{{ url_for('checkin') }}"><i class="fas fa-user-check me-2"></i>Check in</a>
+        <a href="{{ url_for('doctor') }}"><i class="fas fa-user-md me-2"></i>Doctor</a>
+        <a href="{{ url_for('admission') }}"><i class="fas fa-procedures me-2"></i>Admissions</a>
+        <a href="{{ url_for('labor_delivery') }}"><i class="fas fa-baby me-2"></i>Labor & Delivery</a>
+        <a href="{{ url_for('lab') }}"><i class="fas fa-flask me-2"></i>Lab</a>
+        <a href="{{ url_for('pharmacy') }}"><i class="fas fa-pills me-2"></i>Pharmacy</a>
+        <a href="{{ url_for('cashier') }}"><i class="fas fa-cash-register me-2"></i>Cashier</a>
+        <a href="{{ url_for('patients') }}"><i class="fas fa-users me-2"></i>Patients</a>
+        <a href="{{ url_for('medical_reports') }}"><i class="fas fa-file-medical me-2"></i>Medical Reports</a>
       </div>
 
       <!-- Main Content -->
-      <div class="col-md-10 p-4 position-relative">
+      <div class="col-md-10 p-4">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h2 class="fw-bold">Hospital Dashboard</h2>
-          <span class="text-muted">Thursday, September 11, 2025</span>
+          <div>
+            <i class="fas fa-bell text-muted me-3"></i>
+            <span class="text-muted">Thursday, September 11, 2025</span>
+          </div>
         </div>
         <p class="subtitle">Overview of hospital operations and key metrics</p>
+
+        <!-- Time Filters -->
+        <div class="mb-4 time-filters">
+          <button class="btn btn-outline-primary btn-sm">Week</button>
+          <button class="btn btn-primary btn-sm">Month</button>
+          <button class="btn btn-outline-primary btn-sm">Quarter</button>
+          <button class="btn btn-outline-primary btn-sm">Year</button>
+        </div>
 
         <!-- Metrics Grid -->
         <div class="row g-3 mb-4">
@@ -97,12 +79,11 @@
             ('Admitted Patients', stats.admitted_patients),
             ('In Labor', stats.in_labor)
           ] %}
-          <div class="col-md-2">
-            <div class="card text-center">
-              <div class="card-body">
-                <h6 class="card-title">{{ label }}</h6>
-                <p class="card-text">{{ value }}</p>
-              </div>
+          <div class="col-md-4">
+            <div class="card metric-card p-3">
+              <h6 class="card-title">{{ label }}</h6>
+              <h4>{{ value }}</h4>
+              <small class="text-success">↑ Compared to last month</small>
             </div>
           </div>
           {% endfor %}
@@ -117,43 +98,17 @@
             {% else %}
               <ul class="list-group">
                 {% for appointment in appointments %}
-  <!-- <tr>
-    <td>{{ appointment.patient_name }}</td>
-    <td>{{ appointment.date }}</td>
-    <td>
-      <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}" class="btn btn-sm btn-outline-primary">
-        Release
-      </a>
-    </td>
-  </tr>
-{% endfor %} -->
-
-                <!-- {% for appointment in appointments %}
-                  <li class="list-group-item">
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     {{ appointment.patient_name }} with Dr. {{ appointment.doctor_name }} at {{ appointment.time }}
+                    <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}" class="btn btn-sm btn-outline-primary">Release</a>
                   </li>
                 {% endfor %}
               </ul>
-            {% endif %} -->
-            <!-- {% for appointment in appointments %} -->
-
-
-  <tr>
-    <td>{{ appointment.patient_name }}</td>
-    <td>{{ appointment.doctor_name }}</td>
-    <td>{{ appointment.time }}</td>
-    <td>
-      <a href="{{ url_for('release_summary', patient_id=appointment.patient_id) }}" class="btn btn-sm btn-outline-primary">
-        Release
-      </a>
-    </td>
-  </tr>
-{% endfor %}
-
+            {% endif %}
           </div>
 
           <div class="col-md-4">
-            <div class="quick-stats">
+            <div class="card p-3">
               <h6 class="mb-3">Quick Stats</h6>
               <p>Completed Today: {{ stats.completed_appointments_today }}</p>
               <p>Pending: {{ stats.pending_appointments }}</p>
@@ -164,22 +119,20 @@
           </div>
         </div>
 
-        <!-- Clone with Mocha Button -->
+        <!-- Doctor Queue -->
+        <div class="mt-5">
+          <h5>Doctor Queue</h5>
+          <ul class="list-group">
+            {% for item in queue %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ item.patient_name }}
+                <a href="{{ url_for('notify_doctor_ready', appointment_id=item.id) }}" class="btn btn-sm btn-success">Notify Doctor</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
     </div>
   </div>
-
-  <h5>Doctor Queue</h5>
-<ul class="list-group">
-  {% for item in queue %}
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      {{ item.patient_name }}
-      <a href="{{ url_for('notify_doctor_ready', appointment_id=item.id) }}" class="btn btn-sm btn-success">Notify Doctor</a>
-    </li>
-  {% endfor %}
-</ul>
-
 </body>
 </html>
->
-
