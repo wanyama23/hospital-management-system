@@ -42,49 +42,30 @@
       color: #6c757d;
       margin-top: 60px;
     }
-    .action-btn {
-      margin-top: 30px;
-      text-align: center;
-    }
   </style>
 </head>
 <body>
   <div class="d-flex">
     <!-- Sidebar -->
-     <div class="col-md-2 sidebar p-3">
-        <h4 class="mb-4">MediCore</h4>
-        <a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
-        <a href="{{ url_for('checkin') }}"><i class="fas fa-user-check me-2"></i>Check in</a>
-        <a href="{{ url_for('doctor') }}"><i class="fas fa-user-md me-2"></i>Doctor</a>
-        <a href="{{ url_for('admission') }}"><i class="fas fa-procedures me-2"></i>Admissions</a>
-        <a href="{{ url_for('labor_delivery') }}"><i class="fas fa-baby me-2"></i>Labor & Delivery</a>
-        <a href="{{ url_for('lab') }}"><i class="fas fa-flask me-2"></i>Lab</a>
-        <a href="{{ url_for('pharmacy') }}"><i class="fas fa-pills me-2"></i>Pharmacy</a>
-        <a href="{{ url_for('cashier') }}" class="active"><i class="fas fa-cash-register me-2"></i>Cashier</a>
-        <a href="{{ url_for('patients') }}"><i class="fas fa-users me-2"></i>Patients</a>
-        <a href="{{ url_for('medical_reports') }}"><i class="fas fa-file-medical me-2"></i>Medical Reports</a>
-      </div>
-     
-    <!-- <div class="sidebar col-md-2">
-  <a href="{{ url_for('dashboard') }}">Dashboard</a>
-  <a href="{{ url_for('checkin') }}">Check-In</a>
-  <a href="{{ url_for('doctor') }}">Doctor</a>
-  <a href="{{ url_for('admission') }}">Admissions</a>
-  <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
-   <a href="{{ url_for('lab') }}">Lab</a>
-  <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
-  <a href="{{ url_for('cashier') }}" class="active">Billing</a>
-  <a href="{{ url_for('patients') }}">Patients</a>
-  <a href="{{ url_for('appointments') }}">Appointments</a>
-  <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
-</div> -->
-
+    <div class="col-md-2 sidebar p-3">
+      <h4 class="mb-4">MediCore</h4>
+      <a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+      <a href="{{ url_for('checkin') }}"><i class="fas fa-user-check me-2"></i>Check in</a>
+      <a href="{{ url_for('doctor') }}"><i class="fas fa-user-md me-2"></i>Doctor</a>
+      <a href="{{ url_for('admission') }}"><i class="fas fa-procedures me-2"></i>Admissions</a>
+      <a href="{{ url_for('labor_delivery') }}"><i class="fas fa-baby me-2"></i>Labor & Delivery</a>
+      <a href="{{ url_for('lab') }}"><i class="fas fa-flask me-2"></i>Lab</a>
+      <a href="{{ url_for('pharmacy') }}"><i class="fas fa-pills me-2"></i>Pharmacy</a>
+      <a href="{{ url_for('cashier') }}" class="active"><i class="fas fa-cash-register me-2"></i>Cashier</a>
+      <a href="{{ url_for('patients') }}"><i class="fas fa-users me-2"></i>Patients</a>
+      <a href="{{ url_for('medical_reports') }}"><i class="fas fa-file-medical me-2"></i>Medical Reports</a>
+    </div>
 
     <!-- Main Content -->
     <div class="col-md-10">
       <div class="topbar">
         <h5>Billing & Payment</h5>
-        <small class="text-muted">Wednesday, September 24, 2035</small>
+        <small class="text-muted">{{ current_date }}</small>
       </div>
 
       <div class="container">
@@ -104,31 +85,63 @@
           </select>
         </div>
 
-        <!-- Payment Form -->
-        <form method="POST" class="billing-card">
-          <div class="mb-3">
-            <label for="patient_id" class="form-label">Patient ID</label>
-            <input type="number" class="form-control" id="patient_id" name="patient_id" required>
-          </div>
-          <div class="mb-3">
-            <label for="bill_amount" class="form-label">Bill Amount (KES)</label>
-            <input type="number" class="form-control" id="bill_amount" name="bill_amount" required>
-          </div>
-          <button type="submit" class="btn btn-primary">Process Payment</button>
-        </form>
-
-        <!-- No Invoice Message -->
-        <div class="no-invoice">
-          <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="No invoices" width="80">
-          <p class="mt-3">No invoices found</p>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-btn">
-          <button class="btn btn-outline-secondary">Select an invoice to process payment</button>
+        <!-- Pending Invoices Table -->
+        <div class="container mt-4">
+          {% if orders %}
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>MRN</th>
+                  <th>Card Number</th>
+                  <th>Patient Name</th>
+                  <th>Amount (KES)</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in orders %}
+                <tr>
+                  <td>{{ order.id }}</td>
+                  <td>{{ order.medical_record_number }}</td>
+                  <td>{{ order.card_number }}</td>
+                  <td>{{ order.patient_name }}</td>
+                  <td>{{ order.amount }}</td>
+                  <td>
+                    <form method="POST" action="{{ url_for('mark_paid') }}">
+                      <input type="hidden" name="order_id" value="{{ order.id }}">
+                      <button type="submit" class="btn btn-success btn-sm">Mark Paid</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="no-invoice">
+              <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="No invoices" width="80">
+              <p class="mt-3">No invoices found</p>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
 </body>
 </html>
+
+
+
+   <!-- <div class="sidebar col-md-2">
+  <a href="{{ url_for('dashboard') }}">Dashboard</a>
+  <a href="{{ url_for('checkin') }}">Check-In</a>
+  <a href="{{ url_for('doctor') }}">Doctor</a>
+  <a href="{{ url_for('admission') }}">Admissions</a>
+  <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
+   <a href="{{ url_for('lab') }}">Lab</a>
+  <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
+  <a href="{{ url_for('cashier') }}" class="active">Billing</a>
+  <a href="{{ url_for('patients') }}">Patients</a>
+  <a href="{{ url_for('appointments') }}">Appointments</a>
+  <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
+</div> -->

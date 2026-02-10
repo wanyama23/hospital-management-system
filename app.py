@@ -265,6 +265,131 @@ import time
 #     # your DB connection logic here
 #     pass
 
+# @app.route('/checkin', methods=['GET', 'POST'])
+# def checkin():
+#     generated_mrn = f"MRN{int(time.time())}"
+
+#     if request.method == 'POST':
+#         card_number = request.form.get('card_number')
+#         if not card_number:
+#             flash('Please enter a card number.', 'danger')
+#             return redirect(url_for('checkin'))
+
+#         db = get_db()
+#         patient = db.execute('SELECT * FROM patients WHERE card_number = ?', (card_number,)).fetchone()
+
+#         if patient:
+#             # Get last visit date
+#             last_visit = db.execute("""
+#                 SELECT MAX(appointment_date) AS last_visit
+#                 FROM appointments
+#                 WHERE patient_id = ?
+#             """, (patient['id'],)).fetchone()
+
+#             # Get last prescription
+#             last_prescription = db.execute("""
+#                 SELECT prescriptions, updated_at
+#                 FROM patients
+#                 WHERE id = ?
+#             """, (patient['id'],)).fetchone()
+
+#             # Queue patient if not already queued today
+#             existing_appt = db.execute("""
+#                 SELECT id FROM appointments 
+#                 WHERE patient_id = ? AND DATE(appointment_date) = DATE('now')
+#             """, (patient['id'],)).fetchone()
+
+#             if not existing_appt:
+#                 db.execute("""
+#                     INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
+#                     VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
+#                 """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
+#                 db.commit()
+
+#             return render_template(
+#                 'checkin_details.html',
+#                 patient=patient,
+#                 last_visit=last_visit['last_visit'] if last_visit else None,
+#                 last_prescription=last_prescription['prescriptions'] if last_prescription else None,
+#                 generated_mrn=generated_mrn
+#             )
+#         else:
+#             flash(f"No patient found with card number: {card_number}. Please register.", 'warning')
+#             return redirect(url_for('register'))
+
+#     return render_template('checkin.html', generated_mrn=generated_mrn)
+
+
+
+
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         data = request.form
+#         required_fields = ['first_name', 'last_name', 'age', 'gender', 'contact', 'address']
+#         missing = [field for field in required_fields if not data.get(field)]
+#         if missing:
+#             flash(f"Missing fields: {', '.join(missing)}", 'danger')
+#             return redirect(url_for('register'))
+
+#         try:
+#             age = int(data['age'])
+#             if age < 0 or age > 120:
+#                 flash('Please enter a valid age between 0 and 120.', 'warning')
+#                 return redirect(url_for('register'))
+#         except ValueError:
+#             flash('Age must be a number.', 'warning')
+#             return redirect(url_for('register'))
+
+#         # Generate card number automatically
+#         last = db.execute("SELECT MAX(id) FROM patients").fetchone()[0]
+#         next_id = (last or 0) + 1
+#         card_number = f"HCO{next_id:05d}"   # Example: HCO00001, HCO00002, etc.
+#         mrn = f"MRN{next_id:05d}"
+
+#         full_name = f"{data['first_name']} {data['last_name']}"
+
+#         cursor = db.execute("""
+#             INSERT INTO patients (
+#                 medical_record_number, card_number, name, first_name, last_name, age, gender, contact, address,
+#                 is_active, created_at, updated_at
+#             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+#         """, (
+#             mrn,
+#             card_number,
+#             full_name,
+#             data['first_name'],
+#             data['last_name'],
+#             age,
+#             data['gender'],
+#             data['contact'],
+#             data['address']
+#         ))
+#         db.commit()
+#         new_id = cursor.lastrowid
+
+#         # Queue patient for doctor immediately
+#         db.execute("""
+#             INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
+#             VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
+#         """, (new_id, 1))
+#         db.commit()
+
+#         flash(f'Patient registered successfully! Card Number: {card_number}', 'success')
+#         return redirect(url_for('print_card', patient_id=new_id))
+
+#     # GET request — generate MRN preview
+#     generated_mrn = f"MRN{int(time.time())}"
+#     return render_template('register.html', generated_mrn=generated_mrn)
+
+
+# @app.route('/print_card/<int:patient_id>')
+# def print_card(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     return render_template('patient_card.html', patient=patient)
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
     generated_mrn = f"MRN{int(time.time())}"
@@ -304,6 +429,12 @@ def checkin():
                     INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
                     VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
                 """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
+
+                # ✅ Update patient status so doctor sees them
+                db.execute("""
+                    UPDATE patients SET status='scheduled', updated_at=CURRENT_TIMESTAMP WHERE id=?
+                """, (patient['id'],))
+
                 db.commit()
 
             return render_template(
@@ -318,46 +449,6 @@ def checkin():
             return redirect(url_for('register'))
 
     return render_template('checkin.html', generated_mrn=generated_mrn)
-
-# @app.route('/checkin', methods=['GET', 'POST'])
-# def checkin():
-#     generated_mrn = f"MRN{int(time.time())}"
-
-#     if request.method == 'POST':
-#         card_number = request.form.get('card_number')
-#         if not card_number:
-#             flash('Please enter a card number.', 'danger')
-#             return redirect(url_for('checkin'))
-
-#         db = get_db()
-#         patient = db.execute('SELECT * FROM patients WHERE card_number = ?', (card_number,)).fetchone()
-
-#         if patient:
-#             # Check if already queued today
-#             existing_appt = db.execute("""
-#                 SELECT id FROM appointments 
-#                 WHERE patient_id = ? AND DATE(appointment_date) = DATE('now')
-#             """, (patient['id'],)).fetchone()
-
-#             if not existing_appt:
-#                 db.execute("""
-#                     INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
-#                     VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
-#                 """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
-#                 db.commit()
-
-#                 try:
-#                     sms.send(f"{patient['first_name']} {patient['last_name']} has been queued for doctor review.", [patient['contact']])
-#                 except Exception as e:
-#                     print("SMS failed:", e)
-
-#             flash(f"Patient found: {patient['first_name']} {patient['last_name']}", 'success')
-#             return redirect(url_for('doctor_dashboard', patient_id=patient['id']))
-#         else:
-#             flash(f"No patient found with card number: {card_number}. Please register.", 'warning')
-#             return redirect(url_for('register'))
-
-#     return render_template('checkin.html', generated_mrn=generated_mrn)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -384,7 +475,7 @@ def register():
         # Generate card number automatically
         last = db.execute("SELECT MAX(id) FROM patients").fetchone()[0]
         next_id = (last or 0) + 1
-        card_number = f"HCO{next_id:05d}"   # Example: HCO00001, HCO00002, etc.
+        card_number = f"HCO{next_id:05d}"
         mrn = f"MRN{next_id:05d}"
 
         full_name = f"{data['first_name']} {data['last_name']}"
@@ -392,8 +483,8 @@ def register():
         cursor = db.execute("""
             INSERT INTO patients (
                 medical_record_number, card_number, name, first_name, last_name, age, gender, contact, address,
-                is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                status, is_active, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """, (
             mrn,
             card_number,
@@ -418,7 +509,6 @@ def register():
         flash(f'Patient registered successfully! Card Number: {card_number}', 'success')
         return redirect(url_for('print_card', patient_id=new_id))
 
-    # GET request — generate MRN preview
     generated_mrn = f"MRN{int(time.time())}"
     return render_template('register.html', generated_mrn=generated_mrn)
 
@@ -427,11 +517,68 @@ def register():
 def print_card(patient_id):
     db = get_db()
     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    if not patient:
+        flash("Patient not found.", "danger")
+        return redirect(url_for('register'))
+
+    # Render the patient card template
     return render_template('patient_card.html', patient=patient)
+
+# @app.route('/print_card/<int:patient_id>')
+# def print_card(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     flash('Card printed successfully. Patient sent to doctor queue.', 'success')
+#     # ✅ After printing, go back to doctor dashboard
+#     return redirect(url_for('doctor'))
+
 
 
 
 # ---------------- Doctor Interface ----------------
+# ---------------- DOCTOR ----------------
+# @app.route('/doctor', methods=['GET', 'POST'])
+# def doctor():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         symptoms = request.form['symptoms']
+#         diagnosis = request.form['diagnosis']
+#         prescriptions = request.form['prescriptions']
+#         billing_amount = request.form['billing_amount']
+
+#         db.execute("""
+#             UPDATE patients 
+#             SET symptoms = ?, diagnosis = ?, prescriptions = ?, status = 'completed', billing_amount = ?, updated_at = CURRENT_TIMESTAMP 
+#             WHERE id = ?
+#         """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+#         db.execute("""
+#             INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#             VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#         """, (patient_id, prescriptions, 'Dr. Wanyama'))
+
+#         db.execute("""
+#             INSERT INTO cashier_orders (patient_id, amount, status)
+#             VALUES (?, ?, 'pending')
+#         """, (patient_id, billing_amount))
+
+#         db.commit()
+#         flash('Prescription saved, patient sent to pharmacy and cashier!')
+#         return redirect(url_for('doctor_dashboard'))
+
+#     patients = db.execute("""
+#         SELECT id AS patient_id, first_name || ' ' || last_name AS name, status
+#         FROM patients
+#         WHERE status IN ('scheduled', 'awaiting_doctor')
+#         ORDER BY updated_at ASC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('doctor.html', patients=patients, current_date=current_date)
+
+
 @app.route('/doctor', methods=['GET', 'POST'])
 def doctor():
     db = get_db()
@@ -440,25 +587,80 @@ def doctor():
         patient_id = request.form['patient_id']
         symptoms = request.form['symptoms']
         diagnosis = request.form['diagnosis']
+        prescriptions = request.form['prescriptions']
+        billing_amount = request.form['billing_amount']
+
+        # Update patient status to awaiting_pharmacy
         db.execute("""
             UPDATE patients 
-            SET symptoms = ?, diagnosis = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        """, (symptoms, diagnosis, patient_id))
+            SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
+                billing_amount=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+        # Insert pharmacy order
+        db.execute("""
+            INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+        """, (patient_id, prescriptions, 'Dr. Wanyama'))
+
+        # Insert cashier order
+        db.execute("""
+            INSERT INTO cashier_orders (patient_id, amount, status)
+            VALUES (?, ?, 'pending')
+        """, (patient_id, billing_amount))
+
         db.commit()
-        flash('Diagnosis saved successfully!')
+        flash('Prescription saved, patient sent to pharmacy and cashier!')
         return redirect(url_for('doctor'))
 
-    today_patients = db.execute("""
-        SELECT patients.id AS patient_id, first_name || ' ' || last_name AS name
-        FROM appointments
-        JOIN patients ON appointments.patient_id = patients.id
-        WHERE DATE(appointments.appointment_date) = DATE('now') AND appointments.status = 'scheduled'
-        ORDER BY appointments.appointment_date ASC
+    patients = db.execute("""
+        SELECT id AS patient_id, first_name || ' ' || last_name AS name, status
+        FROM patients
+        WHERE status IN ('scheduled', 'awaiting_doctor')
+        ORDER BY updated_at ASC
     """).fetchall()
 
     current_date = datetime.now().strftime('%A, %B %d, %Y')
-    return render_template('doctor.html', patients=today_patients, current_date=current_date)
+    return render_template('doctor.html', patients=patients, current_date=current_date)
+
+
+
+@app.route('/doctor/<int:patient_id>')
+def doctor_detail(patient_id):
+    db = get_db()
+    current_date = datetime.now().strftime('%A, %B %d, %Y')
+    patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    return render_template('doctor.html', patient=patient, current_date=current_date)
+
+
+# @app.route('/doctor', methods=['GET', 'POST'])
+# def doctor():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         symptoms = request.form['symptoms']
+#         diagnosis = request.form['diagnosis']
+#         db.execute("""
+#             UPDATE patients 
+#             SET symptoms = ?, diagnosis = ?, updated_at = CURRENT_TIMESTAMP 
+#             WHERE id = ?
+#         """, (symptoms, diagnosis, patient_id))
+#         db.commit()
+#         flash('Diagnosis saved successfully!')
+#         return redirect(url_for('doctor'))
+
+#     today_patients = db.execute("""
+#         SELECT patients.id AS patient_id, first_name || ' ' || last_name AS name
+#         FROM appointments
+#         JOIN patients ON appointments.patient_id = patients.id
+#         WHERE DATE(appointments.appointment_date) = DATE('now') AND appointments.status = 'scheduled'
+#         ORDER BY appointments.appointment_date ASC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('doctor.html', patients=today_patients, current_date=current_date)
 
 
 @app.route('/doctor/examine/<int:patient_id>', methods=['GET', 'POST'])
@@ -596,6 +798,7 @@ def send_to_pharmacy(patient_id):
 
 
 # Pharmacy dashboard
+# ---------------- PHARMACY ----------------
 @app.route('/pharmacy')
 def pharmacy():
     db = get_db()
@@ -613,22 +816,92 @@ def pharmacy():
     return render_template('pharmacy.html', orders=orders, current_date=current_date)
 
 
+
 @app.route('/pharmacy/fulfill', methods=['POST'])
 def fulfill_order():
     order_id = request.form['order_id']
     db = get_db()
+
+    order = db.execute("""
+        SELECT po.patient_id, po.prescription
+        FROM pharmacy_orders po
+        WHERE po.id=?
+    """, (order_id,)).fetchone()
+
+    # Mark pharmacy order as fulfilled
     db.execute("""
         UPDATE pharmacy_orders
-        SET status = 'fulfilled', fulfilled_by = 'Pharmacist A',
-            fulfilled_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET status='fulfilled', fulfilled_by='Pharmacist A', fulfilled_at=CURRENT_TIMESTAMP
+        WHERE id=?
     """, (order_id,))
+
+    # ✅ Calculate totals
+    med_total = calculate_medication_total(order['prescription'], db)
+    lab_total = calculate_lab_total(order['patient_id'], db)
+    admission_total = calculate_admission_total(order['patient_id'], db)
+
+    bill_amount = med_total + lab_total + admission_total
+
+    # Insert cashier order
+    db.execute("""
+        INSERT INTO cashier_orders (patient_id, amount, status, created_at)
+        VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+    """, (order['patient_id'], bill_amount))
+
     db.commit()
-    flash('Order marked as fulfilled')
+    flash(f'Order fulfilled and sent to cashier. Bill: KES {bill_amount}')
     return redirect(url_for('pharmacy'))
 
 
+
+
+# @app.route('/pharmacy/fulfill', methods=['POST'])
+# def fulfill_pharmacy_order():
+#     order_id = request.form['order_id']
+#     db = get_db()
+#     db.execute("""
+#         UPDATE pharmacy_orders
+#         SET status = 'fulfilled', fulfilled_by = 'Pharmacist A', fulfilled_at = CURRENT_TIMESTAMP
+#         WHERE id = ?
+#     """, (order_id,))
+#     db.commit()
+#     flash('Order marked as fulfilled')
+#     return redirect(url_for('pharmacy'))
+
+# @app.route('/pharmacy')
+# def pharmacy():
+#     db = get_db()
+#     orders = db.execute("""
+#         SELECT po.id, p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                po.prescription, po.ordered_by, po.created_at,
+#                po.status, po.fulfilled_by, po.fulfilled_at
+#         FROM pharmacy_orders po
+#         JOIN patients p ON po.patient_id = p.id
+#         ORDER BY po.created_at DESC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('pharmacy.html', orders=orders, current_date=current_date)
+
+
+# @app.route('/pharmacy/fulfill', methods=['POST'])
+# def fulfill_order():
+#     order_id = request.form['order_id']
+#     db = get_db()
+#     db.execute("""
+#         UPDATE pharmacy_orders
+#         SET status = 'fulfilled', fulfilled_by = 'Pharmacist A',
+#             fulfilled_at = CURRENT_TIMESTAMP
+#         WHERE id = ?
+#     """, (order_id,))
+#     db.commit()
+#     flash('Order marked as fulfilled')
+#     return redirect(url_for('pharmacy'))
+
+
 # Doctor sends patient to lab
+
 @app.route('/send_to_lab/<int:patient_id>', methods=['POST'])
 def send_to_lab(patient_id):
     test_name = request.form.get('test_name', 'General Test')
@@ -637,9 +910,27 @@ def send_to_lab(patient_id):
         INSERT INTO lab_orders (patient_id, test_name, ordered_by, created_at, status)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
     """, (patient_id, test_name, 'Dr. Wanyama'))
+
+    # Update patient status
+    db.execute("""
+        UPDATE patients SET status='awaiting_lab', updated_at=CURRENT_TIMESTAMP WHERE id=?
+    """, (patient_id,))
     db.commit()
+
     flash('Lab test ordered successfully')
     return redirect(url_for('doctor'))
+
+# @app.route('/send_to_lab/<int:patient_id>', methods=['POST'])
+# def send_to_lab(patient_id):
+#     test_name = request.form.get('test_name', 'General Test')
+#     db = get_db()
+#     db.execute("""
+#         INSERT INTO lab_orders (patient_id, test_name, ordered_by, created_at, status)
+#         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#     """, (patient_id, test_name, 'Dr. Wanyama'))
+#     db.commit()
+#     flash('Lab test ordered successfully')
+#     return redirect(url_for('doctor'))
 
 
 
@@ -661,69 +952,59 @@ def lab():
     current_date = datetime.now().strftime('%A, %B %d, %Y')
     return render_template('lab.html', orders=orders, current_date=current_date)
 
+
 @app.route('/lab/fulfill', methods=['POST'])
 def fulfill_lab_order():
     order_id = request.form['order_id']
     lab_results = request.form['lab_results']
     db = get_db()
 
-    # Find patient linked to this order
-    patient_id = db.execute("SELECT patient_id FROM lab_orders WHERE id = ?", (order_id,)).fetchone()['patient_id']
+    patient_id = db.execute("SELECT patient_id FROM lab_orders WHERE id=?", (order_id,)).fetchone()['patient_id']
 
-    # Save results in patient record
+    # Save results and send back to doctor
     db.execute("""
         UPDATE patients
-        SET lab_results = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET lab_results=?, status='awaiting_doctor', updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
     """, (lab_results, patient_id))
 
-    # Mark lab order as fulfilled
     db.execute("""
         UPDATE lab_orders
-        SET status = 'fulfilled', fulfilled_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET status='fulfilled', fulfilled_at=CURRENT_TIMESTAMP
+        WHERE id=?
     """, (order_id,))
     db.commit()
 
     flash('Lab results saved and patient sent back to doctor.')
     return redirect(url_for('lab'))
 
-# @app.route('/lab', methods=['GET', 'POST'])
-# def lab():
+# @app.route('/lab/fulfill', methods=['POST'])
+# def fulfill_lab_order():
+#     order_id = request.form['order_id']
+#     lab_results = request.form['lab_results']
 #     db = get_db()
 
-#     if request.method == 'POST':
-#         patient_id = request.form['patient_id']
-#         lab_results = request.form['lab_results']
-#         db.execute("""
-#             UPDATE patients
-#             SET lab_results = ?, updated_at = CURRENT_TIMESTAMP
-#             WHERE id = ?
-#         """, (lab_results, patient_id))
-#         db.commit()
-#         flash('Lab results saved successfully!')
-#         return redirect(url_for('lab_dashboard'))
+#     # Find patient linked to this order
+#     patient_id = db.execute("SELECT patient_id FROM lab_orders WHERE id = ?", (order_id,)).fetchone()['patient_id']
 
-#     orders = db.execute("""
-#         SELECT lo.id, p.medical_record_number,
-#                p.first_name || ' ' || p.last_name AS patient_name,
-#                lo.test_name, lo.ordered_by, lo.created_at
-#         FROM lab_orders lo
-#         JOIN patients p ON lo.patient_id = p.id
-#         ORDER BY lo.created_at DESC
-#     """).fetchall()
+#     # Save results in patient record
+#     db.execute("""
+#         UPDATE patients
+#         SET lab_results = ?, updated_at = CURRENT_TIMESTAMP
+#         WHERE id = ?
+#     """, (lab_results, patient_id))
 
-#     current_date = datetime.now().strftime('%A, %B %d, %Y')
-#     return render_template('lab.html', orders=orders, current_date=current_date)
+#     # Mark lab order as fulfilled
+#     db.execute("""
+#         UPDATE lab_orders
+#         SET status = 'fulfilled', fulfilled_at = CURRENT_TIMESTAMP
+#         WHERE id = ?
+#     """, (order_id,))
+#     db.commit()
 
+#     flash('Lab results saved and patient sent back to doctor.')
+#     return redirect(url_for('lab'))
 
-
-
-
-
-
-
-# .....................Labor.....................
 
 
 
@@ -778,31 +1059,291 @@ def complete_labor_record():
     return redirect(url_for('labor_delivery_dashboard'))
 
 # ---------------- Billing ----------------
-@app.route('/cashier', methods=['GET', 'POST'])
+# ---------------- CASHIER ----------------
+@app.route('/cashier')
 def cashier():
-    if request.method == 'POST':
-        patient_id = request.form['patient_id']
-        bill_amount = request.form['bill_amount']
-        db = get_db()
-        db.execute("UPDATE patients SET bill_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                   (bill_amount, patient_id))
-        db.commit()
-        flash('Bill paid successfully!')
-        return redirect(url_for('cashier'))
-    return render_template('cashier.html')
-
-
-@app.route('/patient/<int:id>')
-def patient_detail(id):
     db = get_db()
-    patient = db.execute("SELECT * FROM patients WHERE id = ?", (id,)).fetchone()
-    db.close()
+    # Show all pending cashier orders
+    orders = db.execute("""
+        SELECT co.id, p.medical_record_number, p.card_number,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               co.amount, co.created_at, co.status
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.status = 'pending'
+        ORDER BY co.created_at ASC
+    """).fetchall()
 
-    if not patient:
-        flash("Patient not found.", "danger")
-        return redirect(url_for('checkin'))
+    current_date = datetime.now().strftime('%A, %B %d, %Y')
+    return render_template('cashier.html', orders=orders, current_date=current_date)
 
-    return render_template('patient_detail.html', patient=patient)
+
+@app.route('/cashier/mark_paid', methods=['POST'])
+def mark_paid():
+    order_id = request.form['order_id']
+    db = get_db()
+
+    patient = db.execute("""
+        SELECT p.*, co.amount
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.id=?
+    """, (order_id,)).fetchone()
+
+    # Example: calculate breakdown (replace with your actual functions)
+    med_total = calculate_medication_total(patient['prescriptions'], db)
+    lab_total = calculate_lab_total(patient['id'], db)
+    admission_total = calculate_admission_total(patient['id'], db)
+
+    db.execute("UPDATE cashier_orders SET status='paid' WHERE id=?", (order_id,))
+    db.execute("""
+        UPDATE patients SET status='completed', updated_at=CURRENT_TIMESTAMP WHERE id=?
+    """, (patient['id'],))
+    db.commit()
+
+    return render_template(
+        'receipt.html',
+        patient=patient,
+        med_total=med_total,
+        lab_total=lab_total,
+        admission_total=admission_total,
+        amount=patient['amount']
+    )
+
+
+# @app.route('/cashier/mark_paid', methods=['POST'])
+# def mark_paid():
+#     order_id = request.form['order_id']
+#     db = get_db()
+
+#     patient = db.execute("""
+#         SELECT p.*, co.amount
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     # Mark order as paid
+#     db.execute("UPDATE cashier_orders SET status='paid' WHERE id=?", (order_id,))
+#     db.execute("""
+#         UPDATE patients SET status='completed', updated_at=CURRENT_TIMESTAMP WHERE id=?
+#     """, (patient['id'],))
+#     db.commit()
+
+#     flash('Payment recorded successfully. Receipt generated.', 'success')
+#     return render_template('receipt.html', patient=patient, amount=patient['amount'])
+
+
+# @app.route('/cashier')
+# def cashier():
+#     db = get_db()
+#     orders = db.execute("""
+#         SELECT co.id, p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                co.amount, co.created_at, co.status
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.status = 'pending'
+#         ORDER BY co.created_at ASC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('cashier.html', orders=orders, current_date=current_date)
+
+
+
+# @app.route('/cashier/mark_paid', methods=['POST'])
+# def mark_paid():
+#     order_id = request.form['order_id']
+#     db = get_db()
+
+#     patient_id = db.execute("SELECT patient_id FROM cashier_orders WHERE id=?", (order_id,)).fetchone()['patient_id']
+
+#     db.execute("UPDATE cashier_orders SET status='paid' WHERE id=?", (order_id,))
+#     db.execute("""
+#         UPDATE patients SET status='completed', updated_at=CURRENT_TIMESTAMP WHERE id=?
+#     """, (patient_id,))
+#     db.commit()
+
+#     flash('Payment recorded successfully. Patient completed.')
+#     return redirect(url_for('cashier'))
+
+# @app.route('/cashier/mark_paid', methods=['POST'])
+# def mark_paid():
+#     order_id = request.form['order_id']
+#     db = get_db()
+#     db.execute("""
+#         UPDATE cashier_orders
+#         SET status = 'paid'
+#         WHERE id = ?
+#     """, (order_id,))
+#     db.commit()
+#     flash('Payment recorded successfully.')
+#     return redirect(url_for('cashier'))
+
+
+# @app.route('/cashier', methods=['GET', 'POST'])
+# def cashier():
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         bill_amount = request.form['bill_amount']
+#         db = get_db()
+#         db.execute("UPDATE patients SET bill_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+#                    (bill_amount, patient_id))
+#         db.commit()
+#         flash('Bill paid successfully!')
+#         return redirect(url_for('cashier'))
+#     return render_template('cashier.html')
+
+
+# @app.route('/patient/<int:id>')
+# def patient_detail(id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (id,)).fetchone()
+#     db.close()
+
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for('checkin'))
+
+#     return render_template('patient_detail.html', patient=patient)
+
+
+# billing history.....................
+
+# @app.route('/cashier/history')
+# def billing_history():
+#     db = get_db()
+#     orders = db.execute("""
+#         SELECT co.id, p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                co.amount, co.created_at, co.status
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.status = 'paid'
+#         ORDER BY co.created_at DESC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('billing_history.html', orders=orders, current_date=current_date)
+import csv
+from io import StringIO
+
+@app.route('/cashier/history')
+def billing_history():
+    db = get_db()
+    orders = db.execute("""
+        SELECT co.id, p.medical_record_number,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               co.amount, co.created_at, co.status
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.status = 'paid'
+        ORDER BY co.created_at DESC
+    """).fetchall()
+
+    current_date = datetime.now().strftime('%A, %B %d, %Y')
+    return render_template('billing_history.html', orders=orders, current_date=current_date)
+
+
+@app.route('/cashier/history/pdf')
+def export_billing_pdf():
+    db = get_db()
+    orders = db.execute("""
+        SELECT co.id, p.medical_record_number,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               co.amount, co.created_at, co.status
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.status = 'paid'
+        ORDER BY co.created_at DESC
+    """).fetchall()
+
+    html = render_template('billing_history_pdf.html', orders=orders)
+    pdf = HTML(string=html).write_pdf()
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=billing_history.pdf'
+    return response
+
+
+@app.route('/cashier/history/csv')
+def export_billing_csv():
+    db = get_db()
+    orders = db.execute("""
+        SELECT co.id, p.medical_record_number,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               co.amount, co.created_at, co.status
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.status = 'paid'
+        ORDER BY co.created_at DESC
+    """).fetchall()
+
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['Order ID', 'MRN', 'Patient', 'Amount', 'Paid At', 'Status'])
+    for order in orders:
+        cw.writerow([order['id'], order['medical_record_number'], order['patient_name'],
+                     order['amount'], order['created_at'], order['status']])
+
+    response = make_response(si.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = 'attachment; filename=billing_history.csv'
+    return response
+
+
+
+
+def calculate_medication_total(prescriptions, db):
+    # Guard against None or empty string
+    if not prescriptions:
+        return 0
+
+    items = [item.strip() for item in prescriptions.split(',') if item.strip()]
+    total = 0
+    for item in items:
+        row = db.execute("SELECT price FROM medications WHERE name=?", (item,)).fetchone()
+        if row:
+            total += row['price']
+    return total
+
+
+def calculate_lab_total(patient_id, db):
+    rows = db.execute("""
+        SELECT test_name FROM lab_orders WHERE patient_id=? AND status='fulfilled'
+    """, (patient_id,)).fetchall()
+
+    if not rows:  # Guard against None or empty list
+        return 0
+
+    total = 0
+    for row in rows:
+        if not row['test_name']:
+            continue
+        test = db.execute("SELECT price FROM lab_tests WHERE name=?", (row['test_name'],)).fetchone()
+        if test:
+            total += test['price']
+    return total
+
+
+def calculate_admission_total(patient_id, db):
+    rows = db.execute("""
+        SELECT service FROM admissions WHERE patient_id=? AND status='active'
+    """, (patient_id,)).fetchall()
+
+    if not rows:  # Guard against None or empty list
+        return 0
+
+    total = 0
+    for row in rows:
+        if not row['service']:
+            continue
+        adm = db.execute("SELECT price FROM admissions WHERE service=?", (row['service'],)).fetchone()
+        if adm:
+            total += adm['price']
+    return total
+
 
 
 # ---------------- Patient List ----------------
@@ -873,6 +1414,48 @@ def search():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
+
+
+# @app.route('/checkin', methods=['GET', 'POST'])
+# def checkin():
+#     generated_mrn = f"MRN{int(time.time())}"
+
+#     if request.method == 'POST':
+#         card_number = request.form.get('card_number')
+#         if not card_number:
+#             flash('Please enter a card number.', 'danger')
+#             return redirect(url_for('checkin'))
+
+#         db = get_db()
+#         patient = db.execute('SELECT * FROM patients WHERE card_number = ?', (card_number,)).fetchone()
+
+#         if patient:
+#             # Check if already queued today
+#             existing_appt = db.execute("""
+#                 SELECT id FROM appointments 
+#                 WHERE patient_id = ? AND DATE(appointment_date) = DATE('now')
+#             """, (patient['id'],)).fetchone()
+
+#             if not existing_appt:
+#                 db.execute("""
+#                     INSERT INTO appointments (patient_id, doctor_id, appointment_date, status)
+#                     VALUES (?, ?, CURRENT_TIMESTAMP, 'scheduled')
+#                 """, (patient['id'], 1))  # Replace 1 with actual doctor_id logic
+#                 db.commit()
+
+#                 try:
+#                     sms.send(f"{patient['first_name']} {patient['last_name']} has been queued for doctor review.", [patient['contact']])
+#                 except Exception as e:
+#                     print("SMS failed:", e)
+
+#             flash(f"Patient found: {patient['first_name']} {patient['last_name']}", 'success')
+#             return redirect(url_for('doctor_dashboard', patient_id=patient['id']))
+#         else:
+#             flash(f"No patient found with card number: {card_number}. Please register.", 'warning')
+#             return redirect(url_for('register'))
+
+#     return render_template('checkin.html', generated_mrn=generated_mrn)
 
 
 # @app.route('/send_to_lab/<int:patient_id>', methods=['POST'])
