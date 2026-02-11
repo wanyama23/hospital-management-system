@@ -578,6 +578,23 @@ def print_card(patient_id):
 #     current_date = datetime.now().strftime('%A, %B %d, %Y')
 #     return render_template('doctor.html', patients=patients, current_date=current_date)
 
+@app.route('/doctor/<int:patient_id>', methods=['GET'])
+def doctor_interface(patient_id):
+    db = get_db()
+    patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    medications = db.execute("SELECT * FROM medications").fetchall()
+    lab_tests = db.execute("SELECT * FROM lab_tests").fetchall()
+    admissions = db.execute("SELECT * FROM admissions").fetchall()
+
+    return render_template(
+        'doctor.html',
+        patient=patient,
+        medications=medications,
+        lab_tests=lab_tests,
+        admissions=admissions,
+        current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
+    )
+
 
 @app.route('/doctor', methods=['GET', 'POST'])
 def doctor():
@@ -1346,12 +1363,217 @@ def calculate_admission_total(patient_id, db):
 
 
 
+@app.route('/doctor/prescribe/<int:patient_id>', methods=['GET', 'POST'])
+def save_prescription(patient_id):
+    db = get_db()
+    if request.method == 'POST':
+        selected_ids = request.form.getlist('medications')
+        prescription_texts = []
+        total_amount = 0
+
+        for med_id in selected_ids:
+            med = db.execute("SELECT * FROM medications WHERE id=?", (med_id,)).fetchone()
+            if med:
+                prescription_texts.append(f"{med['name']} {med['dosage']} - {med['instructions']}")
+                total_amount += med['price']
+
+        prescription_str = "; ".join(prescription_texts)
+
+        # Save prescription
+        db.execute("""
+            INSERT INTO pharmacy_orders (patient_id, prescription, status, created_at)
+            VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+        """, (patient_id, prescription_str))
+
+        # Also create cashier order with bill
+        db.execute("""
+            INSERT INTO cashier_orders (patient_id, amount, status, created_at)
+            VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+        """, (patient_id, total_amount))
+
+        db.commit()
+        flash('Prescription saved and sent to pharmacy & cashier.')
+        return redirect(url_for('doctor'))
+
+    # GET: show form
+    medications = db.execute("SELECT * FROM medications").fetchall()
+    patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    return render_template('prescription_template.html', patient=patient, medications=medications)
+
+
+@app.route('/doctor/order/<int:patient_id>', methods=['GET', 'POST'])
+def save_order(patient_id):
+    db = get_db()
+    if request.method == 'POST':
+        med_ids = request.form.getlist('medications')
+        lab_ids = request.form.getlist('lab_tests')
+        adm_ids = request.form.getlist('admissions')
+
+        prescription_texts = []
+        total_amount = 0
+
+        # Medications
+        for med_id in med_ids:
+            med = db.execute("SELECT * FROM medications WHERE id=?", (med_id,)).fetchone()
+            if med:
+                prescription_texts.append(f"{med['name']} {med['dosage']} - {med['instructions']}")
+                total_amount += med['price']
+
+        # Lab Tests
+        for lab_id in lab_ids:
+            test = db.execute("SELECT * FROM lab_tests WHERE id=?", (lab_id,)).fetchone()
+            if test:
+                prescription_texts.append(f"Lab Test: {test['name']}")
+                total_amount += test['price']
+
+        # Admissions
+        for adm_id in adm_ids:
+            adm = db.execute("SELECT * FROM admission_services WHERE id=?", (adm_id,)).fetchone()
+            if adm:
+                prescription_texts.append(f"Admission Service: {adm['service']}")
+                total_amount += adm['price']
+
+        prescription_str = "; ".join(prescription_texts)
+
+        # Save pharmacy order
+        db.execute("""
+            INSERT INTO pharmacy_orders (patient_id, prescription, status, created_at)
+            VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+        """, (patient_id, prescription_str))
+
+        # Save cashier order
+        db.execute("""
+            INSERT INTO cashier_orders (patient_id, amount, status, created_at)
+            VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+        """, (patient_id, total_amount))
+
+        db.commit()
+        flash(f'Order saved. Total bill: KES {total_amount}')
+        return redirect(url_for('doctor'))
+
+    # GET: show form
+    medications = db.execute("SELECT * FROM medications").fetchall()
+    lab_tests = db.execute("SELECT * FROM lab_tests").fetchall()
+    admissions = db.execute("SELECT * FROM admission_services").fetchall()
+    patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    return render_template('prescription_template.html',
+                           patient=patient,
+                           medications=medications,
+                           lab_tests=lab_tests,
+                           admissions=admissions)
+
+
 # ---------------- Patient List ----------------
+
 @app.route('/patients')
 def patients():
     db = get_db()
-    patients = db.execute("SELECT * FROM patients WHERE is_active = 1 ORDER BY created_at DESC").fetchall()
+    q = request.args.get('q', '').strip()
+
+    if q:
+        patients = db.execute("""
+            SELECT * FROM patients
+            WHERE is_active = 1
+              AND (first_name LIKE ? OR last_name LIKE ? OR medical_record_number LIKE ?)
+            ORDER BY created_at DESC
+        """, (f"%{q}%", f"%{q}%", f"%{q}%")).fetchall()
+    else:
+        patients = db.execute("""
+            SELECT * FROM patients
+            WHERE is_active = 1
+            ORDER BY created_at DESC
+        """).fetchall()
+
     return render_template('patients.html', patients=patients)
+
+
+@app.route('/patients/<int:id>')
+def patient_detail(id):
+    db = get_db()
+
+    # Patient record
+    patient = db.execute("SELECT * FROM patients WHERE id=?", (id,)).fetchone()
+    if not patient:
+        abort(404)
+
+    # Medical history
+    history = db.execute("""
+        SELECT diagnosis, symptoms, created_at
+        FROM medical_history
+        WHERE patient_id=?
+        ORDER BY created_at DESC
+    """, (id,)).fetchall()
+
+    # Last medication
+    last_med = db.execute("""
+        SELECT prescription, created_at
+        FROM pharmacy_orders
+        WHERE patient_id=?
+        ORDER BY created_at DESC
+        LIMIT 1
+    """, (id,)).fetchone()
+
+    return render_template(
+        'patient_detail.html',
+        patient=patient,
+        history=history,
+        last_med=last_med
+    )
+
+# @app.route('/patients')
+# def patients():
+#     db = get_db()
+#     patients = db.execute(
+#         "SELECT * FROM patients WHERE is_active = 1 ORDER BY created_at DESC"
+#     ).fetchall()
+#     return render_template('patients.html', patients=patients)
+
+# # @app.route('/patients/<int:id>')
+# # def patient_detail(id):
+# #     db = get_db()
+# #     patient = db.execute("SELECT * FROM patients WHERE id=?", (id,)).fetchone()
+# #     if not patient:
+# #         abort(404)
+# #     return render_template('patient_detail.html', patient=patient)
+# @app.route('/patients/<int:id>')
+# def patient_detail(id):
+#     db = get_db()
+
+#     # Get patient record
+#     patient = db.execute("SELECT * FROM patients WHERE id=?", (id,)).fetchone()
+#     if not patient:
+#         abort(404)
+
+#     # Get medical history (visits, diagnoses, etc.)
+#     history = db.execute("""
+#         SELECT diagnosis, symptoms, created_at
+#         FROM medical_history
+#         WHERE patient_id=?
+#         ORDER BY created_at DESC
+#     """, (id,)).fetchall()
+
+#     # Get last medication prescribed
+#     last_med = db.execute("""
+#         SELECT prescription, created_at
+#         FROM pharmacy_orders
+#         WHERE patient_id=?
+#         ORDER BY created_at DESC
+#         LIMIT 1
+#     """, (id,)).fetchone()
+
+#     return render_template(
+#         'patient_detail.html',
+#         patient=patient,
+#         history=history,
+#         last_med=last_med
+#     )
+
+
+# @app.route('/patients')
+# def patients():
+#     db = get_db()
+#     patients = db.execute("SELECT * FROM patients WHERE is_active = 1 ORDER BY created_at DESC").fetchall()
+#     return render_template('patients.html', patients=patients)
 
 # ---------------- Additional Sidebar Routes ----------------
 @app.route('/admission')

@@ -5,6 +5,223 @@
   <title>Patient Details | MediCore</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
+    body { background-color: #f8f9fa; }
+    .patient-card {
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    @media print {
+      .no-print {
+        display: none; /* Hide buttons when printing */
+      }
+      body {
+        background-color: #ffffff; /* White background for print */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h2 class="mb-4">🩺 Patient Profile</h2>
+
+    <div class="patient-card">
+      <h4>{{ patient.first_name }} {{ patient.last_name }}</h4>
+      <p><strong>MRN:</strong> {{ patient.medical_record_number }}</p>
+      <p><strong>Age:</strong> {{ patient.age }}</p>
+      <p><strong>Gender:</strong> {{ patient.gender }}</p>
+      <p><strong>Contact:</strong> {{ patient.contact }}</p>
+      <p><strong>Address:</strong> {{ patient.address }}</p>
+      <p><strong>Registered:</strong> {{ patient.created_at }}</p>
+      <hr>
+
+      <h5 class="mt-3">💳 Billing Information</h5>
+      <p><strong>Bill Amount:</strong> KES {{ patient.bill_amount }}</p>
+      <p><strong>Last Updated:</strong> {{ patient.updated_at }}</p>
+      <hr>
+
+      <h5 class="mt-3">📋 Medical History</h5>
+      {% if history %}
+        <ul class="list-group">
+          {% for record in history %}
+            <li class="list-group-item">
+              <strong>{{ record.created_at }}:</strong>
+              {{ record.diagnosis }} (Symptoms: {{ record.symptoms }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">No medical history available.</p>
+      {% endif %}
+
+      <hr>
+      <h5 class="mt-3">💊 Last Medication</h5>
+      {% if last_med %}
+        <p>{{ last_med.prescription }} (Prescribed on {{ last_med.created_at }})</p>
+      {% else %}
+        <p class="text-muted">No medication record found.</p>
+      {% endif %}
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="mt-4 d-flex gap-2 no-print">
+      <a href="{{ url_for('patients') }}" class="btn btn-secondary">Back to Patients</a>
+      <a href="{{ url_for('register') }}" class="btn btn-success">Register Another Patient</a>
+      <button onclick="window.print()" class="btn btn-outline-dark">🖨️ Print</button>
+    </div>
+  </div>
+</body>
+</html>
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Details | MediCore</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .patient-card {
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h2 class="mb-4">🩺 Patient Profile</h2>
+
+    <div class="patient-card">
+      <h4>{{ patient.first_name }} {{ patient.last_name }}</h4>
+      <p><strong>MRN:</strong> {{ patient.medical_record_number }}</p>
+      <p><strong>Age:</strong> {{ patient.age }}</p>
+      <p><strong>Gender:</strong> {{ patient.gender }}</p>
+      <p><strong>Contact:</strong> {{ patient.contact }}</p>
+      <p><strong>Address:</strong> {{ patient.address }}</p>
+      <p><strong>Registered:</strong> {{ patient.created_at }}</p>
+      <hr>
+
+      <h5 class="mt-3">💳 Billing Information</h5>
+      <p><strong>Bill Amount:</strong> KES {{ patient.bill_amount }}</p>
+      <p><strong>Last Updated:</strong> {{ patient.updated_at }}</p>
+      <hr>
+
+      <h5 class="mt-3">📋 Medical History</h5>
+      {% if history %}
+        <ul class="list-group">
+          {% for record in history %}
+            <li class="list-group-item">
+              <strong>{{ record.created_at }}:</strong>
+              {{ record.diagnosis }} (Symptoms: {{ record.symptoms }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">No medical history available.</p>
+      {% endif %}
+
+      <hr>
+      <h5 class="mt-3">💊 Last Medication</h5>
+      {% if last_med %}
+        <p>{{ last_med.prescription }} (Prescribed on {{ last_med.created_at }})</p>
+      {% else %}
+        <p class="text-muted">No medication record found.</p>
+      {% endif %}
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+      <a href="{{ url_for('patients') }}" class="btn btn-secondary">Back to Patients</a>
+      <a href="{{ url_for('register') }}" class="btn btn-success">Register Another Patient</a>
+    </div>
+  </div>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Details | MediCore</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .patient-card {
+      background-color: #ffffff;
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h2 class="mb-4">🩺 Patient Profile</h2>
+
+    <div class="patient-card">
+      <h4>{{ patient.first_name }} {{ patient.last_name }}</h4>
+      <p><strong>MRN:</strong> {{ patient.medical_record_number }}</p>
+      <p><strong>Age:</strong> {{ patient.age }}</p>
+      <p><strong>Gender:</strong> {{ patient.gender }}</p>
+      <p><strong>Contact:</strong> {{ patient.contact }}</p>
+      <p><strong>Address:</strong> {{ patient.address }}</p>
+      <p><strong>Registered:</strong> {{ patient.created_at }}</p>
+      <hr>
+
+      <h5 class="mt-3">💳 Billing Information</h5>
+      <p><strong>Bill Amount:</strong> KES {{ patient.bill_amount }}</p>
+      <p><strong>Last Updated:</strong> {{ patient.updated_at }}</p>
+      <hr>
+
+      <h5 class="mt-3">📋 Medical History</h5>
+      {% if history %}
+        <ul class="list-group">
+          {% for record in history %}
+            <li class="list-group-item">
+              <strong>{{ record.created_at }}:</strong>
+              {{ record.diagnosis }} (Symptoms: {{ record.symptoms }})
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">No medical history available.</p>
+      {% endif %}
+
+      <hr>
+      <h5 class="mt-3">💊 Last Medication</h5>
+      {% if last_med %}
+        <p>{{ last_med.prescription }} (Prescribed on {{ last_med.created_at }})</p>
+      {% else %}
+        <p class="text-muted">No medication record found.</p>
+      {% endif %}
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+      <a href="{{ url_for('patients') }}" class="btn btn-secondary">Back to Patients</a>
+      <a href="{{ url_for('register') }}" class="btn btn-success">Register Another Patient</a>
+    </div>
+  </div>
+</body>
+</html> -->
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Details | MediCore</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
     body {
       background-color: #f8f9fa;
     }
@@ -49,100 +266,6 @@
     </div>
   </div>
 </body>
-</html>
-
-
-
-
-
-<!-- <h2>Patient Details</h2>
-<p><strong>MRN:</strong> {{ patient['medical_record_number'] }}</p>
-<p><strong>Name:</strong> {{ patient['first_name'] }} {{ patient['last_name'] }}</p>
-<p><strong>Age:</strong> {{ patient['age'] }}</p>
-<p><strong>Gender:</strong> {{ patient['gender'] }}</p>
-<p><strong>Contact:</strong> {{ patient['contact'] }}</p>
-<p><strong>Address:</strong> {{ patient['address'] }}</p>
-<p><strong>Diagnosis:</strong> {{ patient['diagnosis'] }}</p>
-<p><strong>Lab Results:</strong> {{ patient['lab_results'] }}</p>
-<p><strong>Prescribed Medicine:</strong> {{ patient['prescribed_medicine'] }}</p>
-<p><strong>Bill Amount:</strong> {{ patient['bill_amount'] }}</p> -->
-
-
-
-
-<!-- {% extends "layout.html" %}
-
-{% block content %}
-<h2>Patient Details</h2>
-<p><strong>Name:</strong> {{ patient.name }}</p>
-<p><strong>Age:</strong> {{ patient.age }}</p>
-<p><strong>Gender:</strong> {{ patient.gender }}</p>
-<p><strong>Contact:</strong> {{ patient.contact }}</p>
-<p><strong>Address:</strong> {{ patient.address }}</p>
-<p><strong>Symptoms:</strong> {{ patient.symptoms }}</p>
-<p><strong>Diagnosis:</strong> {{ patient.diagnosis }}</p>
-<p><strong>Lab Results:</strong> {{ patient.lab_results }}</p>
-<p><strong>Prescribed Medicine:</strong> {{ patient.prescribed_medicine }}</p>
-<p><strong>Bill Amount:</strong> {{ patient.bill_amount }}</p>
-{% endblock %} -->
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Patient Details</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <h1>Patient Details</h1>
-    <ul>
-        <li>ID: {{ patient[0] }}</li>
-        <li>Name: {{ patient[1] }}</li>
-        <li>Age: {{ patient[2] }}</li>
-        <li>Gender: {{ patient[3] }}</li>
-        <li>Contact: {{ patient[4] }}</li>
-        <li>Address: {{ patient[5] }}</li>
-        <li>Symptoms: {{ patient[6] }}</li>
-        <li>Diagnosis: {{ patient[7] }}</li>
-        <li>Lab Results: {{ patient[8] }}</li>
-        <li>Prescribed Medicine: {{ patient[9] }}</li>
-        <li>Bill Amount: {{ patient[10] }}</li>
-    </ul>
-    <a href="{{ url_for('home') }}">Back to Home</a>
-</body>
-</html> -->
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Details</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1>Patient Details</h1>
-    </header>
-    <div>
-        <h2>Details for Patient ID: {{ patient.id }}</h2>
-        <p>Name: {{ patient.name }}</p>
-        <p>Age: {{ patient.age }}</p>
-        <p>Gender: {{ patient.gender }}</p>
-        <p>Contact: {{ patient.contact }}</p>
-        <p>Address: {{ patient.address }}</p>
-        <p>Symptoms: {{ patient.symptoms }}</p>
-        <p>Diagnosis: {{ patient.diagnosis }}</p>
-        <p>Lab Results: {{ patient.lab_results }}</p>
-        <p>Prescribed Medicine: {{ patient.prescribed_medicine }}</p>
-        <p>Bill Amount: {{ patient.bill_amount }}</p>
-    </div>
-</body>
 </html> -->
 
 
@@ -150,22 +273,3 @@
 
 
 
-<!-- templates/patient_detail.html -->
-<!-- {% extends 'index.html' %}
-
-{% block content %}
-<h2>Patient Details</h2>
-<table>
-    <tr><th>Name</th><td>{{ patient[1] }}</td></tr>
-    <tr><th>Age</th><td>{{ patient[2] }}</td></tr>
-    <tr><th>Gender</th><td>{{ patient[3] }}</td></tr>
-    <tr><th>Contact</th><td>{{ patient[4] }}</td></tr>
-    <tr><th>Address</th><td>{{ patient[5] }}</td></tr>
-    <tr><th>Symptoms</th><td>{{ patient[6] }}</td></tr>
-    <tr><th>Diagnosis</th><td>{{ patient[7] }}</td></tr>
-    <tr><th>Lab Results</th><td>{{ patient[8] }}</td></tr>
-    <tr><th>Prescribed Medicine</th><td>{{ patient[9] }}</td></tr>
-    <tr><th>Bill Amount</th><td>{{ patient[10] }}</td></tr>
-    <tr><th>Payment Status</th><td>{{ patient[11] }}</td></tr>
-</table>
-{% endblock %} -->
