@@ -29,7 +29,7 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
     .subtitle { font-size: 1rem; color: #6c757d; margin-bottom: 20px; }
-    .time-filters button { margin-right: 10px; }
+    .time-filters a { margin-right: 10px; }
   </style>
 </head>
 <body>
@@ -56,17 +56,30 @@
           <h2 class="fw-bold">Hospital Dashboard</h2>
           <div>
             <i class="fas fa-bell text-muted me-3"></i>
-            <span class="text-muted">Thursday, September 11, 2025</span>
+            <!-- Real-time clock -->
+            <span id="current-time" class="text-muted"></span>
           </div>
         </div>
         <p class="subtitle">Overview of hospital operations and key metrics</p>
 
-        <!-- Time Filters -->
+        <!-- Time Filters (server-side links) -->
         <div class="mb-4 time-filters">
-          <button class="btn btn-outline-primary btn-sm">Week</button>
-          <button class="btn btn-primary btn-sm">Month</button>
-          <button class="btn btn-outline-primary btn-sm">Quarter</button>
-          <button class="btn btn-outline-primary btn-sm">Year</button>
+          <a href="{{ url_for('dashboard', period='week') }}" 
+             class="btn btn-sm {% if period == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+             Week
+          </a>
+          <a href="{{ url_for('dashboard', period='month') }}" 
+             class="btn btn-sm {% if period == 'month' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+             Month
+          </a>
+          <a href="{{ url_for('dashboard', period='quarter') }}" 
+             class="btn btn-sm {% if period == 'quarter' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+             Quarter
+          </a>
+          <a href="{{ url_for('dashboard', period='year') }}" 
+             class="btn btn-sm {% if period == 'year' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+             Year
+          </a>
         </div>
 
         <!-- Metrics Grid -->
@@ -134,5 +147,22 @@
       </div>
     </div>
   </div>
+
+  <!-- JavaScript for real-time clock -->
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const options = { 
+        weekday: 'long', year: 'numeric', month: 'long', 
+        day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
+      };
+      document.getElementById('current-time').textContent = now.toLocaleString('en-US', options);
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+  </script>
 </body>
 </html>
+
+
+
