@@ -13,6 +13,9 @@
       box-shadow: 0 0 8px rgba(0,0,0,0.05);
       margin-bottom: 15px;
     }
+    .no-print {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -43,12 +46,15 @@
       <p class="text-muted">No active patients found.</p>
     {% endif %}
 
-    <div class="mt-4">
+    <div class="mt-4 d-flex gap-2 no-print">
       <a href="{{ url_for('register') }}" class="btn btn-success">➕ Register New Patient</a>
+      <!-- Back Button -->
+      <button onclick="history.back()" class="btn btn-secondary">⬅️ Back</button>
     </div>
   </div>
 </body>
 </html>
+
 
 
 
