@@ -7,29 +7,10 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     body { background-color: #f8f9fa; }
-    .sidebar {
-      height: 100vh;
-      background-color: #343a40;
-      color: white;
-    }
-    .sidebar a {
-      color: white;
-      text-decoration: none;
-      display: block;
-      padding: 12px 20px;
-      font-weight: 500;
-    }
-    .sidebar a:hover, .sidebar a.active {
-      background-color: #495057;
-      border-left: 4px solid #0d6efd;
-    }
-    .panel {
-      background-color: #ffffff;
-      border-radius: 12px;
-      padding: 25px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.05);
-      margin-bottom: 20px;
-    }
+    .sidebar { height: 100vh; background-color: #343a40; color: white; }
+    .sidebar a { color: white; text-decoration: none; display: block; padding: 12px 20px; font-weight: 500; }
+    .sidebar a:hover, .sidebar a.active { background-color: #495057; border-left: 4px solid #0d6efd; }
+    .panel { background-color: #ffffff; border-radius: 12px; padding: 25px; box-shadow: 0 0 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
   </style>
 </head>
 <body>
@@ -60,7 +41,7 @@
           <form method="POST" action="{{ url_for('admission') }}">
             <div class="mb-3">
               <label for="patient_id" class="form-label">Patient ID / MRN</label>
-              <input type="text" class="form-control" id="patient_id" name="patient_id" placeholder="Enter patient ID" required>
+              <input type="text" class="form-control" id="patient_id" name="patient_id" required>
             </div>
             <div class="mb-3">
               <label for="ward" class="form-label">Ward / Department</label>
@@ -74,7 +55,11 @@
             </div>
             <div class="mb-3">
               <label for="bed_number" class="form-label">Bed Number</label>
-              <input type="text" class="form-control" id="bed_number" name="bed_number" placeholder="Enter bed number" required>
+              <select class="form-select" id="bed_number" name="bed_number" required>
+                {% for bed in beds %}
+                  <option value="{{ bed['bed_number'] }}">{{ bed['bed_number'] }} ({{ bed['ward'] }})</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="mb-3">
               <label for="reason" class="form-label">Reason for Admission</label>
@@ -97,17 +82,23 @@
                   <th>Reason</th>
                   <th>Admitted On</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {% for adm in admissions %}
                   <tr>
-                    <td>{{ adm.patient_name }}</td>
-                    <td>{{ adm.ward }}</td>
-                    <td>{{ adm.bed_number }}</td>
-                    <td>{{ adm.reason }}</td>
-                    <td>{{ adm.admitted_at }}</td>
-                    <td>{{ adm.status }}</td>
+                    <td>{{ adm['patient_name'] }}</td>
+                    <td>{{ adm['ward'] }}</td>
+                    <td>{{ adm['bed_number'] }}</td>
+                    <td>{{ adm['reason'] }}</td>
+                    <td>{{ adm['admitted_at'] }}</td>
+                    <td>{{ adm['status'] }}</td>
+                    <td>
+                      <form method="POST" action="{{ url_for('discharge', admission_id=adm['id']) }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Discharge</button>
+                      </form>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -121,5 +112,8 @@
   </div>
 </body>
 </html>
+
+
+
 
 

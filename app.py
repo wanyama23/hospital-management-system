@@ -1038,32 +1038,38 @@ def fulfill_lab_order():
 #     conn.row_factory = sqlite3.Row
 #     return conn
 
-@app.route('/admission', methods=['GET', 'POST'])
+
+
+# --- Admissions Route ---
+
+
+# --- Admissions Route ---
+@app.route("/admission", methods=["GET", "POST"])
 def admission():
     db = get_db()
 
-    if request.method == 'POST':
-        patient_id = request.form['patient_id']
-        ward = request.form['ward']
-        bed_number = request.form['bed_number']
-        reason = request.form['reason']
-        admitted_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if request.method == "POST":
+        patient_id = request.form["patient_id"]
+        ward = request.form["ward"]
+        bed_number = request.form["bed_number"]
+        reason = request.form["reason"]
+        admitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # ✅ Insert with exactly 7 values for 7 columns
+        # Insert admission record
         db.execute("""
             INSERT INTO admissions (patient_id, ward, bed_number, reason, admitted_at, discharged_at, status)
             VALUES (?, ?, ?, ?, ?, NULL, ?)
-        """, (patient_id, ward, bed_number, reason, admitted_at, 'admitted'))
+        """, (patient_id, ward, bed_number, reason, admitted_at, "admitted"))
 
         # Update patient admission_status
         db.execute("UPDATE patients SET admission_status='admitted' WHERE id=?", (patient_id,))
 
         # Update bed status
-        db.execute("UPDATE beds SET status='occupied' WHERE bed_number=?", (bed_number,))
+        db.execute("UPDATE beds SET status='occupied', patient_id=? WHERE bed_number=?", (patient_id, bed_number))
 
         db.commit()
         flash("Patient admitted successfully!", "success")
-        return redirect(url_for('admission'))
+        return redirect(url_for("admission"))
 
     # Fetch current admissions
     admissions = db.execute("""
@@ -1075,20 +1081,23 @@ def admission():
         ORDER BY a.admitted_at DESC
     """).fetchall()
 
-    return render_template('admission.html', admissions=admissions)
+    # Fetch available beds for dropdown
+    beds = db.execute("SELECT bed_number, ward FROM beds WHERE status='available'").fetchall()
 
+    return render_template("admission.html", admissions=admissions, beds=beds)
 
-@app.route('/discharge/<int:admission_id>', methods=['POST'])
+# --- Discharge Route ---
+@app.route("/discharge/<int:admission_id>", methods=["POST"])
 def discharge(admission_id):
     db = get_db()
 
     admission = db.execute("SELECT * FROM admissions WHERE id=?", (admission_id,)).fetchone()
     if not admission:
         flash("Admission record not found.", "danger")
-        return redirect(url_for('admission'))
+        return redirect(url_for("admission"))
 
-    patient_id = admission['patient_id']
-    bed_number = admission['bed_number']
+    patient_id = admission["patient_id"]
+    bed_number = admission["bed_number"]
 
     # Mark admission as discharged
     db.execute("""
@@ -1103,11 +1112,84 @@ def discharge(admission_id):
     db.execute("""
         INSERT INTO billing (admission_id, patient_id, total_amount, status)
         VALUES (?, ?, ?, 'pending')
-    """, (admission_id, patient_id, 0.0))  # total_amount can be calculated later
+    """, (admission_id, patient_id, 0.0))
 
     db.commit()
     flash("Patient discharged and sent to cashier for billing.", "success")
-    return redirect(url_for('admission'))
+    return redirect(url_for("admission"))
+
+
+
+# @app.route('/admission', methods=['GET', 'POST'])
+# def admission():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         ward = request.form['ward']
+#         bed_number = request.form['bed_number']
+#         reason = request.form['reason']
+#         admitted_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+#         # ✅ Insert with exactly 7 values for 7 columns
+#         db.execute("""
+#             INSERT INTO admissions (patient_id, ward, bed_number, reason, admitted_at, discharged_at, status)
+#             VALUES (?, ?, ?, ?, ?, NULL, ?)
+#         """, (patient_id, ward, bed_number, reason, admitted_at, 'admitted'))
+
+#         # Update patient admission_status
+#         db.execute("UPDATE patients SET admission_status='admitted' WHERE id=?", (patient_id,))
+
+#         # Update bed status
+#         db.execute("UPDATE beds SET status='occupied' WHERE bed_number=?", (bed_number,))
+
+#         db.commit()
+#         flash("Patient admitted successfully!", "success")
+#         return redirect(url_for('admission'))
+
+#     # Fetch current admissions
+#     admissions = db.execute("""
+#         SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name,
+#                a.ward, a.bed_number, a.reason, a.admitted_at, a.status
+#         FROM admissions a
+#         JOIN patients p ON a.patient_id = p.id
+#         WHERE a.status='admitted'
+#         ORDER BY a.admitted_at DESC
+#     """).fetchall()
+
+#     return render_template('admission.html', admissions=admissions)
+
+
+# @app.route('/discharge/<int:admission_id>', methods=['POST'])
+# def discharge(admission_id):
+#     db = get_db()
+
+#     admission = db.execute("SELECT * FROM admissions WHERE id=?", (admission_id,)).fetchone()
+#     if not admission:
+#         flash("Admission record not found.", "danger")
+#         return redirect(url_for('admission'))
+
+#     patient_id = admission['patient_id']
+#     bed_number = admission['bed_number']
+
+#     # Mark admission as discharged
+#     db.execute("""
+#         UPDATE admissions SET status='discharged', discharged_at=CURRENT_TIMESTAMP
+#         WHERE id=?
+#     """, (admission_id,))
+
+#     # Free up bed
+#     db.execute("UPDATE beds SET status='available', patient_id=NULL WHERE bed_number=?", (bed_number,))
+
+#     # Create billing record
+#     db.execute("""
+#         INSERT INTO billing (admission_id, patient_id, total_amount, status)
+#         VALUES (?, ?, ?, 'pending')
+#     """, (admission_id, patient_id, 0.0))  # total_amount can be calculated later
+
+#     db.commit()
+#     flash("Patient discharged and sent to cashier for billing.", "success")
+#     return redirect(url_for('admission'))
 
 
 
