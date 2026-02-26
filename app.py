@@ -641,19 +641,47 @@ def doctor_ready(appointment_id):
 
 
 # Doctor sends patient to pharmacy
-@app.route('/send_to_pharmacy/<int:patient_id>')
+@app.route("/send_to_pharmacy/<int:patient_id>")
 def send_to_pharmacy(patient_id):
     db = get_db()
-    patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
 
+    # --- Fetch patient record ---
+    patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    if not patient:
+        flash("Patient record not found.", "danger")
+        return redirect(url_for("doctor"))
+
+    # --- Insert pharmacy order ---
     db.execute("""
         INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
-    """, (patient_id, patient['prescriptions'], 'Dr. Wanyama'))
+    """, (patient_id, patient["prescriptions"], "Dr. Wanyama"))
+
+    # --- Update patient status so they leave doctor queue ---
+    db.execute("""
+        UPDATE patients
+        SET status='pharmacy'
+        WHERE id=?
+    """, (patient_id,))
+
     db.commit()
 
-    flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", 'success')
-    return redirect(url_for('doctor'))
+    flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", "success")
+    return redirect(url_for("doctor"))
+
+# @app.route('/send_to_pharmacy/<int:patient_id>')
+# def send_to_pharmacy(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+
+#     db.execute("""
+#         INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#     """, (patient_id, patient['prescriptions'], 'Dr. Wanyama'))
+#     db.commit()
+
+#     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", 'success')
+#     return redirect(url_for('doctor'))
 
 
 # Pharmacy dashboard
@@ -819,16 +847,18 @@ def fulfill_lab_order():
 
 
 # --- Admissions Route ---
+from datetime import datetime
+
 @app.route("/admit_from_exam/<int:patient_id>", methods=["POST"])
 def admit_from_exam(patient_id):
     db = get_db()
 
-    ward = request.form["ward"]
-    bed_number = request.form["bed_number"]
-    reason = request.form["reason"]
+    ward = request.form.get("ward")
+    bed_number = request.form.get("bed_number")
+    reason = request.form.get("reason")
     admitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Safety checks
+    # --- Safety checks ---
     patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
     if not patient:
         flash("Patient not found.", "danger")
@@ -839,27 +869,77 @@ def admit_from_exam(patient_id):
         flash("Selected bed is not available.", "danger")
         return redirect(url_for("doctor"))
 
-    # Insert admission record
+    # --- Insert admission record ---
     db.execute("""
         INSERT INTO admissions (patient_id, ward, bed_number, reason, admitted_at, discharged_at, status)
         VALUES (?, ?, ?, ?, ?, NULL, 'admitted')
     """, (patient_id, ward, bed_number, reason, admitted_at))
 
-    # Update patient admission_status
-    db.execute("UPDATE patients SET admission_status='admitted' WHERE id=?", (patient_id,))
+    # --- Update patient status so they leave doctor queue ---
+    db.execute("""
+        UPDATE patients
+        SET status='admitted', admission_status='admitted'
+        WHERE id=?
+    """, (patient_id,))
 
-    # Update bed status
-    db.execute("UPDATE beds SET status='occupied', patient_id=? WHERE bed_number=?", (patient_id, bed_number))
+    # --- Update bed status ---
+    db.execute("""
+        UPDATE beds
+        SET status='occupied', patient_id=?
+        WHERE bed_number=?
+    """, (patient_id, bed_number))
 
     db.commit()
 
     flash("Patient admitted successfully!", "success")
 
-    # Redirect logic: maternity patients go to Labor & Delivery
+    # --- Redirect logic ---
     if ward == "Maternity":
         return redirect(url_for("labor_delivery"))
     else:
         return redirect(url_for("admission"))
+
+# @app.route("/admit_from_exam/<int:patient_id>", methods=["POST"])
+# def admit_from_exam(patient_id):
+#     db = get_db()
+
+#     ward = request.form["ward"]
+#     bed_number = request.form["bed_number"]
+#     reason = request.form["reason"]
+#     admitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+#     # Safety checks
+#     patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     bed = db.execute("SELECT * FROM beds WHERE bed_number=? AND status='available'", (bed_number,)).fetchone()
+#     if not bed:
+#         flash("Selected bed is not available.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     # Insert admission record
+#     db.execute("""
+#         INSERT INTO admissions (patient_id, ward, bed_number, reason, admitted_at, discharged_at, status)
+#         VALUES (?, ?, ?, ?, ?, NULL, 'admitted')
+#     """, (patient_id, ward, bed_number, reason, admitted_at))
+
+#     # Update patient admission_status
+#     db.execute("UPDATE patients SET admission_status='admitted' WHERE id=?", (patient_id,))
+
+#     # Update bed status
+#     db.execute("UPDATE beds SET status='occupied', patient_id=? WHERE bed_number=?", (patient_id, bed_number))
+
+#     db.commit()
+
+#     flash("Patient admitted successfully!", "success")
+
+#     # Redirect logic: maternity patients go to Labor & Delivery
+#     if ward == "Maternity":
+#         return redirect(url_for("labor_delivery"))
+#     else:
+#         return redirect(url_for("admission"))
 
 
 @app.route("/labor_delivery")
@@ -1016,50 +1096,96 @@ def complete_labor_record():
 
 
 
+from datetime import datetime
 
-@app.route("/admit_to_labor/<int:patient_id>", methods=["GET", "POST"])
+@app.route("/admit_to_labor/<int:patient_id>", methods=["POST"])
 def admit_to_labor(patient_id):
     db = get_db()
 
-    # Find the first available maternity bed
-    bed = db.execute("""
-        SELECT bed_number FROM beds
-        WHERE ward='Maternity' AND status='available'
-        LIMIT 1
-    """).fetchone()
+    ward = "Labor Ward"  # fixed ward name
+    bed_number = request.form.get("bed_number")
+    reason = request.form.get("reason")
+    admitted_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    if not bed:
-        flash("No available maternity beds.")
+    # --- Safety checks ---
+    patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    if not patient:
+        flash("Patient not found.", "danger")
         return redirect(url_for("doctor"))
 
-    # Insert admission record
+    bed = db.execute("SELECT * FROM beds WHERE bed_number=? AND status='available'", (bed_number,)).fetchone()
+    if not bed:
+        flash("Selected bed is not available.", "danger")
+        return redirect(url_for("doctor"))
+
+    # --- Insert labor admission record ---
     db.execute("""
-        INSERT INTO admissions (patient_id, ward, bed_number, reason, admitted_at, status)
-        VALUES (?, 'Maternity', ?, 'Labor & Delivery', datetime('now'), 'admitted')
-    """, (patient_id, bed["bed_number"]))
+        INSERT INTO labor_admissions (patient_id, ward, bed_number, reason, admitted_at, discharged_at, status)
+        VALUES (?, ?, ?, ?, ?, NULL, 'admitted')
+    """, (patient_id, ward, bed_number, reason, admitted_at))
 
-    # Update bed status to occupied
+    # --- Update patient status so they leave doctor queue ---
     db.execute("""
-        UPDATE beds SET status='occupied', patient_id=?
-        WHERE bed_number=? AND ward='Maternity'
-    """, (patient_id, bed["bed_number"]))
+        UPDATE patients
+        SET status='labor', admission_status='admitted'
+        WHERE id=?
+    """, (patient_id,))
 
-    # Insert into labor_records with patient_id and patient_name
-    patient = db.execute("""
-        SELECT first_name || ' ' || last_name AS name
-        FROM patients WHERE id=?
-    """, (patient_id,)).fetchone()
-
-    if patient:
-        db.execute("""
-            INSERT INTO labor_records (patient_id, patient_name, start_time, status)
-            VALUES (?, ?, datetime('now'), 'active')
-        """, (patient_id, patient["name"]))
+    # --- Update bed status ---
+    db.execute("""
+        UPDATE beds
+        SET status='occupied', patient_id=?
+        WHERE bed_number=?
+    """, (patient_id, bed_number))
 
     db.commit()
 
-    flash("Patient admitted directly to Labor Ward.")
+    flash("Patient admitted to Labor Ward successfully!", "success")
     return redirect(url_for("labor_delivery"))
+
+# @app.route("/admit_to_labor/<int:patient_id>", methods=["GET", "POST"])
+# def admit_to_labor(patient_id):
+#     db = get_db()
+
+#     # Find the first available maternity bed
+#     bed = db.execute("""
+#         SELECT bed_number FROM beds
+#         WHERE ward='Maternity' AND status='available'
+#         LIMIT 1
+#     """).fetchone()
+
+#     if not bed:
+#         flash("No available maternity beds.")
+#         return redirect(url_for("doctor"))
+
+#     # Insert admission record
+#     db.execute("""
+#         INSERT INTO admissions (patient_id, ward, bed_number, reason, admitted_at, status)
+#         VALUES (?, 'Maternity', ?, 'Labor & Delivery', datetime('now'), 'admitted')
+#     """, (patient_id, bed["bed_number"]))
+
+#     # Update bed status to occupied
+#     db.execute("""
+#         UPDATE beds SET status='occupied', patient_id=?
+#         WHERE bed_number=? AND ward='Maternity'
+#     """, (patient_id, bed["bed_number"]))
+
+#     # Insert into labor_records with patient_id and patient_name
+#     patient = db.execute("""
+#         SELECT first_name || ' ' || last_name AS name
+#         FROM patients WHERE id=?
+#     """, (patient_id,)).fetchone()
+
+#     if patient:
+#         db.execute("""
+#             INSERT INTO labor_records (patient_id, patient_name, start_time, status)
+#             VALUES (?, ?, datetime('now'), 'active')
+#         """, (patient_id, patient["name"]))
+
+#     db.commit()
+
+#     flash("Patient admitted directly to Labor Ward.")
+#     return redirect(url_for("labor_delivery"))
 
 
 
@@ -1118,59 +1244,6 @@ def calculate_ward_fee(admission, db):
         pass
 
     return ward_fee
-
-# def calculate_ward_fee(admission, db):
-#     """
-#     Calculate the ward fee for a given admission row.
-#     """
-
-#     # Convert sqlite3.Row to a dict
-#     admission = dict(admission)
-
-#     # Admission date
-#     admission_date_str = admission.get("admission_date") or admission.get("admitted_on")
-#     if admission_date_str:
-#         admission_date = datetime.strptime(admission_date_str, "%Y-%m-%d")
-#     else:
-#         admission_date = datetime.now()
-
-#     # Discharge date
-#     discharge_date_str = admission.get("discharge_date") or admission.get("released_on")
-#     if discharge_date_str:
-#         discharge_date = datetime.strptime(discharge_date_str, "%Y-%m-%d")
-#     else:
-#         discharge_date = datetime.now()
-
-#     # Days stayed
-#     days_stayed = (discharge_date - admission_date).days
-#     if days_stayed <= 0:
-#         days_stayed = 1
-
-#     # Ward type
-#     ward_type = (admission.get("ward_type") or "general").lower()
-
-#     ward_rates = {
-#         "general": 1000,
-#         "semi_private": 2000,
-#         "private": 3000,
-#         "icu": 5000
-#     }
-
-#     daily_rate = ward_rates.get(ward_type, ward_rates["general"])
-#     ward_fee = days_stayed * daily_rate
-
-#     # Optional: add services
-#     try:
-#         services = db.execute(
-#             "SELECT cost FROM services WHERE admission_id = ?", (admission["id"],)
-#         ).fetchall()
-#         for service in services:
-#             ward_fee += service["cost"]
-#     except Exception:
-#         pass
-
-#     return ward_fee
-
 
 
 
@@ -1424,9 +1497,9 @@ def cashier_detail(admission_id):
 @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
 def mark_paid(patient_id):
     db = get_db()
-    order_id = request.form["order_id"]
+    order_id = request.form.get("order_id")
 
-    # Fetch patient record
+    # --- Fetch patient record ---
     patient_row = db.execute(
         "SELECT * FROM patients WHERE id=?", (patient_id,)
     ).fetchone()
@@ -1437,8 +1510,8 @@ def mark_paid(patient_id):
 
     patient = dict(patient_row)
 
-    # ✅ Safely calculate totals
-    med_total = calculate_medication_total(patient.get("prescriptions"), db) if patient.get("prescriptions") else 0
+    # --- Safely calculate totals ---
+    med_total = calculate_medication_total(patient_id, db)
     lab_total = calculate_lab_total(patient_id, db)
     admission_total = calculate_admission_total(patient_id, db)
 
@@ -1451,10 +1524,10 @@ def mark_paid(patient_id):
         WHERE id=? AND patient_id=?
     """, (total_amount, order_id, patient_id))
 
-    # --- Optionally also update billing ---
+    # --- Update billing with timestamp ---
     db.execute("""
         UPDATE billing
-        SET status='paid', total_amount=?
+        SET status='paid', total_amount=?, date_paid=CURRENT_TIMESTAMP
         WHERE patient_id=?
     """, (total_amount, patient_id))
 
@@ -1465,6 +1538,49 @@ def mark_paid(patient_id):
     # ✅ Redirect directly to receipt page
     return redirect(url_for("receipt", order_id=order_id))
 
+# @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
+# def mark_paid(patient_id):
+#     db = get_db()
+#     order_id = request.form["order_id"]
+
+#     # Fetch patient record
+#     patient_row = db.execute(
+#         "SELECT * FROM patients WHERE id=?", (patient_id,)
+#     ).fetchone()
+
+#     if not patient_row:
+#         flash("Patient record not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     patient = dict(patient_row)
+
+#     # ✅ Safely calculate totals
+#     med_total = calculate_medication_total(patient.get("prescriptions"), db) if patient.get("prescriptions") else 0
+#     lab_total = calculate_lab_total(patient_id, db)
+#     admission_total = calculate_admission_total(patient_id, db)
+
+#     total_amount = med_total + lab_total + admission_total
+
+#     # --- Update cashier_orders ---
+#     db.execute("""
+#         UPDATE cashier_orders
+#         SET status='paid', amount=?
+#         WHERE id=? AND patient_id=?
+#     """, (total_amount, order_id, patient_id))
+
+#     # --- Optionally also update billing ---
+#     db.execute("""
+#         UPDATE billing
+#         SET status='paid', total_amount=?
+#         WHERE patient_id=?
+#     """, (total_amount, patient_id))
+
+#     db.commit()
+
+#     flash(f"Payment recorded. Receipt generated. Total: KES {total_amount}", "success")
+
+#     # ✅ Redirect directly to receipt page
+#     return redirect(url_for("receipt", order_id=order_id))
 
 
 @app.route("/cashier/receipt/<int:order_id>")
@@ -1475,9 +1591,11 @@ def receipt(order_id):
         SELECT co.id, co.patient_id, co.amount, co.status,
                p.name AS patient_name,
                p.medical_record_number,
-               p.card_number
+               p.card_number,
+               b.date_paid
         FROM cashier_orders co
         JOIN patients p ON co.patient_id = p.id
+        LEFT JOIN billing b ON co.patient_id = b.patient_id
         WHERE co.id=?
     """, (order_id,)).fetchone()
 
@@ -1498,8 +1616,42 @@ def receipt(order_id):
         ward_fee=ward_fee,
         lab_total=lab_total,
         med_total=med_total,
-        current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
+        current_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
+
+# @app.route("/cashier/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     order_row = db.execute("""
+#         SELECT co.id, co.patient_id, co.amount, co.status,
+#                p.name AS patient_name,
+#                p.medical_record_number,
+#                p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order_row:
+#         flash("Receipt not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     order = dict(order_row)
+
+#     # Calculate breakdown
+#     med_total = calculate_medication_total(order["patient_id"], db)
+#     lab_total = calculate_lab_total(order["patient_id"], db)
+#     ward_fee = calculate_admission_total(order["patient_id"], db)
+
+#     return render_template(
+#         "receipt.html",
+#         order=order,
+#         ward_fee=ward_fee,
+#         lab_total=lab_total,
+#         med_total=med_total,
+#         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
+#     )
 
 
 import csv

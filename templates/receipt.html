@@ -23,7 +23,10 @@
     <div class="receipt-header">
       <h4>MediCore Hospital</h4>
       <p><strong>Receipt</strong></p>
-      <small>{{ current_date }}</small>
+      <!-- Official payment timestamp from DB -->
+      <small><strong>Paid on:</strong> {{ order.date_paid }}</small><br>
+      <!-- Real-time clock -->
+      <small id="current-time"></small>
     </div>
 
     <p><strong>Patient Name:</strong> {{ order.patient_name }}</p>
@@ -35,22 +38,10 @@
     <hr>
     <h5>Breakdown of Charges</h5>
     <table class="table">
-      <tr>
-        <td>Ward Fee</td>
-        <td>KES {{ ward_fee }}</td>
-      </tr>
-      <tr>
-        <td>Lab Tests</td>
-        <td>KES {{ lab_total }}</td>
-      </tr>
-      <tr>
-        <td>Medications</td>
-        <td>KES {{ med_total }}</td>
-      </tr>
-      <tr>
-        <th>Total</th>
-        <th>KES {{ order.amount }}</th>
-      </tr>
+      <tr><td>Ward Fee</td><td>KES {{ ward_fee }}</td></tr>
+      <tr><td>Lab Tests</td><td>KES {{ lab_total }}</td></tr>
+      <tr><td>Medications</td><td>KES {{ med_total }}</td></tr>
+      <tr><th>Total</th><th>KES {{ order.amount }}</th></tr>
     </table>
     <hr>
 
@@ -60,5 +51,20 @@
       <a href="{{ url_for('cashier') }}" class="btn btn-secondary">Back to Cashier</a>
     </div>
   </div>
+
+  <!-- ✅ Real-time clock script -->
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const options = { 
+        weekday: 'long', year: 'numeric', month: 'long', 
+        day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' 
+      };
+      document.getElementById('current-time').textContent = 
+        "Current time: " + now.toLocaleString('en-US', options);
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+  </script>
 </body>
 </html>
