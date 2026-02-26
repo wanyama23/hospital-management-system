@@ -35,7 +35,7 @@
       <h5 class="mb-3">Patient: {{ patient.first_name }} {{ patient.last_name }}</h5>
 
       <!-- Main Examination Form -->
-      <form method="POST" action="{{ url_for('examine_patient', patient_id=patient.id) }}">
+      <form method="POST" action="{{ url_for('examine', patient_id=patient.id) }}">
         
         <!-- Symptoms -->
         <div class="mb-3">
@@ -96,6 +96,11 @@
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#admitModal">
           <i class="fas fa-bed me-2"></i>Admit Patient
         </button>
+        <!-- Send to Labor Ward Button -->
+        <a href="{{ url_for('admit_to_labor', patient_id=patient.id) }}" 
+           class="btn btn-outline-danger">
+          <i class="fas fa-baby me-2"></i>Send to Labor Ward
+        </a>
       </div>
     </div>
   </div>
@@ -176,6 +181,7 @@
   </script>
 </body>
 </html>
+
 
 
 

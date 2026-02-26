@@ -148,7 +148,7 @@
                   {% for patient in patients %}
                   <li class="list-group-item d-flex justify-content-between align-items-center">
                     {{ patient['name'] }}
-                    <a href="{{ url_for('examine_patient', patient_id=patient['patient_id']) }}"
+                    <a href="{{ url_for('examine', patient_id=patient['patient_id']) }}"
                        class="btn btn-sm btn-outline-primary">Examine</a>
                   </li>
                   {% endfor %}

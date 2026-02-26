@@ -108,7 +108,8 @@
                   <td>{{ order.patient_name }}</td>
                   <td>{{ order.amount }}</td>
                   <td>
-                    <form method="POST" action="{{ url_for('mark_paid') }}">
+                    <form method="POST" action="{{ url_for('mark_paid', patient_id=order.patient_id) }}">
+
                       <input type="hidden" name="order_id" value="{{ order.id }}">
                       <button type="submit" class="btn btn-success btn-sm">Mark Paid</button>
                     </form>
@@ -117,6 +118,18 @@
                 {% endfor %}
               </tbody>
             </table>
+
+            <!-- 🔑 Billing Summary Section -->
+            <div class="mt-5">
+              <h5>Billing Summary</h5>
+              <ul>
+                <li>Ward Fee: {{ ward_fee }}</li>
+                <li>Lab Tests: {{ lab_total }}</li>
+                <li>Medications: {{ med_total }}</li>
+                <li><strong>Total: {{ billing.total_amount }}</strong></li>
+              </ul>
+            </div>
+
           {% else %}
             <div class="no-invoice">
               <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="No invoices" width="80">
@@ -129,6 +142,7 @@
   </div>
 </body>
 </html>
+
 
 
 
