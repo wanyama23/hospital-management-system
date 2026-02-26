@@ -1512,13 +1512,12 @@ def cashier_detail(admission_id):
 
 #     return render_template("cashier_detail.html", billing=billing)
 
-
-
-
 @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
 def mark_paid(patient_id):
     db = get_db()
+    order_id = request.form["order_id"]
 
+    # Fetch patient record
     patient_row = db.execute(
         "SELECT * FROM patients WHERE id=?", (patient_id,)
     ).fetchone()
@@ -1536,7 +1535,14 @@ def mark_paid(patient_id):
 
     total_amount = med_total + lab_total + admission_total
 
-    # Update billing or cashier record
+    # --- Update cashier_orders ---
+    db.execute("""
+        UPDATE cashier_orders
+        SET status='paid', amount=?
+        WHERE id=? AND patient_id=?
+    """, (total_amount, order_id, patient_id))
+
+    # --- Optionally also update billing ---
     db.execute("""
         UPDATE billing
         SET status='paid', total_amount=?
@@ -1544,8 +1550,133 @@ def mark_paid(patient_id):
     """, (total_amount, patient_id))
 
     db.commit()
-    flash(f"Payment recorded. Total: KES {total_amount}", "success")
-    return redirect(url_for("cashier"))
+
+    flash(f"Payment recorded. Receipt generated. Total: KES {total_amount}", "success")
+
+    # ✅ Redirect directly to receipt page
+    return redirect(url_for("receipt", order_id=order_id))
+
+# @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
+# def mark_paid(patient_id):
+#     db = get_db()
+#     order_id = request.form["order_id"]
+
+#     # --- Fetch patient record ---
+#     patient_row = db.execute(
+#         "SELECT * FROM patients WHERE id=?", (patient_id,)
+#     ).fetchone()
+
+#     if not patient_row:
+#         flash("Patient record not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     patient = dict(patient_row)
+
+#     # --- Safely calculate totals ---
+#     med_total = calculate_medication_total(patient.get("prescriptions"), db) if patient.get("prescriptions") else 0
+#     lab_total = calculate_lab_total(patient_id, db)
+#     admission_total = calculate_admission_total(patient_id, db)
+
+#     total_amount = med_total + lab_total + admission_total
+
+#     # --- Update cashier_orders ---
+#     db.execute("""
+#         UPDATE cashier_orders
+#         SET status='paid', amount=?
+#         WHERE id=? AND patient_id=?
+#     """, (total_amount, order_id, patient_id))
+
+#     # --- Optionally also update billing ---
+#     db.execute("""
+#         UPDATE billing
+#         SET status='paid', total_amount=?
+#         WHERE patient_id=?
+#     """, (total_amount, patient_id))
+
+#     db.commit()
+
+#     flash(f"Payment recorded. Receipt generated. Total: KES {total_amount}", "success")
+#     return redirect(url_for("cashier"))
+
+
+@app.route("/cashier/receipt/<int:order_id>")
+def receipt(order_id):
+    db = get_db()
+
+    order_row = db.execute("""
+        SELECT co.id, co.patient_id, co.amount, co.status,
+               p.name AS patient_name,
+               p.medical_record_number,
+               p.card_number
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.id=?
+    """, (order_id,)).fetchone()
+
+    if not order_row:
+        flash("Receipt not found.", "danger")
+        return redirect(url_for("cashier"))
+
+    order = dict(order_row)
+
+    # Calculate breakdown
+    med_total = calculate_medication_total(order["patient_id"], db)
+    lab_total = calculate_lab_total(order["patient_id"], db)
+    ward_fee = calculate_admission_total(order["patient_id"], db)
+
+    return render_template(
+        "receipt.html",
+        order=order,
+        ward_fee=ward_fee,
+        lab_total=lab_total,
+        med_total=med_total,
+        current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
+    )
+
+
+
+# @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
+# def mark_paid(patient_id):
+#     db = get_db()
+#     order_id = request.form["order_id"]
+
+#     # Fetch patient record
+#     patient_row = db.execute(
+#         "SELECT * FROM patients WHERE id=?", (patient_id,)
+#     ).fetchone()
+
+#     if not patient_row:
+#         flash("Patient record not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     patient = dict(patient_row)
+
+#     # ✅ Safely calculate totals
+#     med_total = calculate_medication_total(patient.get("prescriptions"), db) if patient.get("prescriptions") else 0
+#     lab_total = calculate_lab_total(patient_id, db)
+#     admission_total = calculate_admission_total(patient_id, db)
+
+#     total_amount = med_total + lab_total + admission_total
+
+#     # --- Update cashier_orders ---
+#     db.execute("""
+#         UPDATE cashier_orders
+#         SET status='paid', amount=?, paid_at=CURRENT_TIMESTAMP
+#         WHERE id=? AND patient_id=?
+#     """, (total_amount, order_id, patient_id))
+
+#     # --- Optionally also update billing ---
+#     db.execute("""
+#         UPDATE billing
+#         SET status='paid', total_amount=?
+#         WHERE patient_id=?
+#     """, (total_amount, patient_id))
+
+#     db.commit()
+
+#     flash(f"Payment recorded. Receipt generated. Total: KES {total_amount}", "success")
+#     return redirect(url_for("cashier"))
+
 
 # @app.route('/cashier/mark_paid', methods=['POST'])
 # def mark_paid():
@@ -1796,6 +1927,8 @@ def calculate_medication_total(patient_id, db):
 
     # Fallback if prescriptions is some other type or not found
     return 0
+
+
 
 
 
