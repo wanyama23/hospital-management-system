@@ -109,27 +109,16 @@
                   <td>{{ order.amount }}</td>
                   <td>
                     <form method="POST" action="{{ url_for('mark_paid', patient_id=order.patient_id) }}">
-
                       <input type="hidden" name="order_id" value="{{ order.id }}">
                       <button type="submit" class="btn btn-success btn-sm">Mark Paid</button>
+                      <!-- View Receipt button -->
+                      <a href="{{ url_for('receipt', order_id=order.id) }}" class="btn btn-info btn-sm">View Receipt</a>
                     </form>
                   </td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
-
-            <!-- 🔑 Billing Summary Section -->
-            <div class="mt-5">
-              <h5>Billing Summary</h5>
-              <ul>
-                <li>Ward Fee: {{ ward_fee }}</li>
-                <li>Lab Tests: {{ lab_total }}</li>
-                <li>Medications: {{ med_total }}</li>
-                <li><strong>Total: {{ billing.total_amount }}</strong></li>
-              </ul>
-            </div>
-
           {% else %}
             <div class="no-invoice">
               <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="No invoices" width="80">
@@ -142,20 +131,3 @@
   </div>
 </body>
 </html>
-
-
-
-
-   <!-- <div class="sidebar col-md-2">
-  <a href="{{ url_for('dashboard') }}">Dashboard</a>
-  <a href="{{ url_for('checkin') }}">Check-In</a>
-  <a href="{{ url_for('doctor') }}">Doctor</a>
-  <a href="{{ url_for('admission') }}">Admissions</a>
-  <a href="{{ url_for('labor_delivery') }}">Labor_delivery</a>
-   <a href="{{ url_for('lab') }}">Lab</a>
-  <a href="{{ url_for('pharmacy') }}">Pharmacy</a>
-  <a href="{{ url_for('cashier') }}" class="active">Billing</a>
-  <a href="{{ url_for('patients') }}">Patients</a>
-  <a href="{{ url_for('appointments') }}">Appointments</a>
-  <a href="{{ url_for('medical_reports') }}">Medical Reports</a>
-</div> -->

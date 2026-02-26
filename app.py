@@ -1354,52 +1354,24 @@ def discharge(admission_id):
 @app.route("/cashier")
 def cashier():
     db = get_db()
-    orders = db.execute(
-        "SELECT * FROM cashier_orders WHERE status='pending'"
-    ).fetchall()
-
-    billing_rows = db.execute(
-        "SELECT * FROM billing"
-    ).fetchall()
+    orders = db.execute("""
+        SELECT co.id, co.patient_id, co.amount, co.status,
+               p.name AS patient_name,
+               p.medical_record_number,
+               p.card_number
+        FROM cashier_orders co
+        JOIN patients p ON co.patient_id = p.id
+        WHERE co.status='pending'
+    """).fetchall()
 
     return render_template(
         "cashier.html",
         orders=orders,
-        billing=billing_rows,   # now you can use {{ billing }} in template
         current_date=datetime.now().strftime("%Y-%m-%d")
     )
 
-# @app.route("/cashier")
-# def cashier():
-#     db = get_db()
 
-#     orders = db.execute("SELECT * FROM cashier_orders").fetchall()
-#     billing = db.execute("SELECT * FROM billing").fetchall()  # or fetch one record
 
-#     current_date = datetime.now().strftime("%Y-%m-%d")
-
-#     return render_template(
-#         "cashier.html",
-#         orders=orders,
-#         billing=billing,
-#         current_date=current_date
-#     )
-
-# @app.route('/cashier')
-# def cashier():
-#     db = get_db()
-#     orders = db.execute("""
-#         SELECT co.id, p.medical_record_number, p.card_number,
-#                p.first_name || ' ' || p.last_name AS patient_name,
-#                co.amount, co.created_at, co.status
-#         FROM cashier_orders co
-#         JOIN patients p ON co.patient_id = p.id
-#         WHERE co.status = 'pending'
-#         ORDER BY co.created_at ASC
-#     """).fetchall()
-
-#     current_date = datetime.now().strftime('%A, %B %d, %Y')
-#     return render_template('cashier.html', orders=orders, current_date=current_date)
 
 
 
@@ -1408,24 +1380,7 @@ def calculate_ward_fee_from_row(admission_row):
     ward_fees = {"General": 500, "Maternity": 1000, "ICU": 2000}
     return ward_fees.get(ward_name, 0)
 
-# def calculate_ward_fee(admission, db):
-#     """
-#     Calculate the ward fee for a given admission.
-#     You can adjust the logic depending on your schema.
-#     """
-#     # Example: assume admission has ward_type and days_admitted
-#     ward_type = admission.ward_type
-#     days = admission.days_admitted
 
-#     # Define rates per ward type
-#     rates = {
-#         "general": 1000,
-#         "semi_private": 2000,
-#         "private": 3000
-#     }
-
-#     daily_rate = rates.get(ward_type, 1000)  # default to general
-#     return daily_rate * days
 
 
 @app.route("/cashier/<int:admission_id>")
@@ -1464,72 +1419,7 @@ def cashier_detail(admission_id):
         total_amount=total_amount,
     )
 
-# @app.route("/cashier/<int:admission_id>")
-# def cashier_detail(admission_id):
-#     db = get_db()
 
-#     # Fetch billing record
-#     billing = db.execute("""
-#         SELECT b.id, b.admission_id, b.patient_id,
-#                p.first_name || ' ' || p.last_name AS patient_name,
-#                b.total_amount, b.status
-#         FROM billing b
-#         JOIN patients p ON b.patient_id = p.id
-#         WHERE b.admission_id=?
-#     """, (admission_id,)).fetchone()
-
-#     if not billing:
-#         flash("Billing record not found.", "danger")
-#         return redirect(url_for("admission"))
-
-#     patient_id = billing["patient_id"]
-
-#     # 🔑 Calculate breakdown
-#     ward_fee = calculate_ward_fee(admission_id, db)
-#     lab_total = calculate_lab_total(patient_id, db)
-#     med_total = calculate_medication_total(patient_id, db)
-
-#     # Update billing record with latest total
-#     total_amount = ward_fee + lab_total + med_total
-#     db.execute("UPDATE billing SET total_amount=? WHERE id=?", (total_amount, billing["id"]))
-#     db.commit()
-
-#     # Refresh billing record after update
-#     billing = db.execute("""
-#         SELECT b.id, b.admission_id, b.patient_id,
-#                p.first_name || ' ' || p.last_name AS patient_name,
-#                b.total_amount, b.status
-#         FROM billing b
-#         JOIN patients p ON b.patient_id = p.id
-#         WHERE b.admission_id=?
-#     """, (admission_id,)).fetchone()
-
-#     return render_template(
-#         "cashier.html",
-#         billing=billing,
-#         ward_fee=ward_fee,
-#         lab_total=lab_total,
-#         med_total=med_total,
-#         current_date=datetime.now().strftime("%A, %B %d, %Y")
-#     )
-
-# @app.route("/cashier/<int:admission_id>")
-# def cashier_detail(admission_id):
-#     db = get_db()
-
-#     billing = db.execute("""
-#         SELECT b.id, b.admission_id, b.patient_id, p.name AS patient_name,
-#                b.total_amount, b.status
-#         FROM billing b
-#         JOIN patients p ON b.patient_id = p.id
-#         WHERE b.admission_id=?
-#     """, (admission_id,)).fetchone()
-
-#     if not billing:
-#         flash("Billing record not found.", "danger")
-#         return redirect(url_for("admission"))
-
-#     return render_template("cashier_detail.html", billing=billing)
 
 @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
 def mark_paid(patient_id):
@@ -1575,51 +1465,6 @@ def mark_paid(patient_id):
     # ✅ Redirect directly to receipt page
     return redirect(url_for("receipt", order_id=order_id))
 
-# @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
-# def mark_paid(patient_id):
-#     db = get_db()
-#     order_id = request.form["order_id"]
-
-#     # --- Fetch patient record ---
-#     patient_row = db.execute(
-#         "SELECT * FROM patients WHERE id=?", (patient_id,)
-#     ).fetchone()
-
-#     if not patient_row:
-#         flash("Patient record not found.", "danger")
-#         return redirect(url_for("cashier"))
-
-#     patient = dict(patient_row)
-
-#     # --- Safely calculate totals ---
-#     med_total = calculate_medication_total(patient.get("prescriptions"), db) if patient.get("prescriptions") else 0
-#     lab_total = calculate_lab_total(patient_id, db)
-#     admission_total = calculate_admission_total(patient_id, db)
-
-#     total_amount = med_total + lab_total + admission_total
-
-#     # --- Update cashier_orders ---
-#     db.execute("""
-#         UPDATE cashier_orders
-#         SET status='paid', amount=?
-#         WHERE id=? AND patient_id=?
-#     """, (total_amount, order_id, patient_id))
-
-#     # --- Optionally also update billing ---
-#     db.execute("""
-#         UPDATE billing
-#         SET status='paid', total_amount=?
-#         WHERE patient_id=?
-#     """, (total_amount, patient_id))
-
-#     db.commit()
-
-#     flash(f"Payment recorded. Receipt generated. Total: KES {total_amount}", "success")
-#     return redirect(url_for("cashier"))
-
-
-
-
 
 
 @app.route("/cashier/receipt/<int:order_id>")
@@ -1656,119 +1501,7 @@ def receipt(order_id):
         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
     )
 
-# @app.route("/cashier/receipt/<int:order_id>")
-# def receipt(order_id):
-#     db = get_db()
 
-#     order_row = db.execute("""
-#         SELECT co.id, co.patient_id, co.amount, co.status,
-#                p.name AS patient_name,
-#                p.medical_record_number,
-#                p.card_number
-#         FROM cashier_orders co
-#         JOIN patients p ON co.patient_id = p.id
-#         WHERE co.id=?
-#     """, (order_id,)).fetchone()
-
-#     if not order_row:
-#         flash("Receipt not found.", "danger")
-#         return redirect(url_for("cashier"))
-
-#     order = dict(order_row)
-
-#     # Calculate breakdown
-#     med_total = calculate_medication_total(order["patient_id"], db)
-#     lab_total = calculate_lab_total(order["patient_id"], db)
-#     ward_fee = calculate_admission_total(order["patient_id"], db)
-
-#     return render_template(
-#         "receipt.html",
-#         order=order,
-#         ward_fee=ward_fee,
-#         lab_total=lab_total,
-#         med_total=med_total,
-#         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
-#     )
-
-
-
-# @app.route("/cashier/mark_paid/<int:patient_id>", methods=["POST"])
-# def mark_paid(patient_id):
-#     db = get_db()
-#     order_id = request.form["order_id"]
-
-#     # Fetch patient record
-#     patient_row = db.execute(
-#         "SELECT * FROM patients WHERE id=?", (patient_id,)
-#     ).fetchone()
-
-#     if not patient_row:
-#         flash("Patient record not found.", "danger")
-#         return redirect(url_for("cashier"))
-
-#     patient = dict(patient_row)
-
-#     # ✅ Safely calculate totals
-#     med_total = calculate_medication_total(patient.get("prescriptions"), db) if patient.get("prescriptions") else 0
-#     lab_total = calculate_lab_total(patient_id, db)
-#     admission_total = calculate_admission_total(patient_id, db)
-
-#     total_amount = med_total + lab_total + admission_total
-
-#     # --- Update cashier_orders ---
-#     db.execute("""
-#         UPDATE cashier_orders
-#         SET status='paid', amount=?, paid_at=CURRENT_TIMESTAMP
-#         WHERE id=? AND patient_id=?
-#     """, (total_amount, order_id, patient_id))
-
-#     # --- Optionally also update billing ---
-#     db.execute("""
-#         UPDATE billing
-#         SET status='paid', total_amount=?
-#         WHERE patient_id=?
-#     """, (total_amount, patient_id))
-
-#     db.commit()
-
-#     flash(f"Payment recorded. Receipt generated. Total: KES {total_amount}", "success")
-#     return redirect(url_for("cashier"))
-
-
-# @app.route('/cashier/mark_paid', methods=['POST'])
-# def mark_paid():
-#     order_id = request.form['order_id']
-#     db = get_db()
-
-#     patient = db.execute("""
-#         SELECT p.*, co.amount
-#         FROM cashier_orders co
-#         JOIN patients p ON co.patient_id = p.id
-#         WHERE co.id=?
-#     """, (order_id,)).fetchone()
-
-#     # Example: calculate breakdown (replace with your actual functions)
-#     med_total = calculate_medication_total(patient['prescriptions'], db)
-#     lab_total = calculate_lab_total(patient['id'], db)
-#     admission_total = calculate_admission_total(patient['id'], db)
-
-#     db.execute("UPDATE cashier_orders SET status='paid' WHERE id=?", (order_id,))
-#     db.execute("""
-#         UPDATE patients SET status='completed', updated_at=CURRENT_TIMESTAMP WHERE id=?
-#     """, (patient['id'],))
-#     db.commit()
-
-#     return render_template(
-#         'receipt.html',
-#         patient=patient,
-#         med_total=med_total,
-#         lab_total=lab_total,
-#         admission_total=admission_total,
-#         amount=patient['amount']
-#     )
-
-
-#
 import csv
 from io import StringIO
 
@@ -1859,29 +1592,6 @@ def calculate_admission_total(patient_id, db):
     med_total = calculate_medication_total(patient_id, db)
 
     return ward_fee + lab_total + med_total
-
-
-# def calculate_ward_fee(admission, db):
-#     # Example: flat fee per ward type
-#     ward_fees = {
-#         "General": 1000,
-#         "Surgical": 3000,
-#         "Maternity": 2000,
-#         "Pediatrics": 1500
-#     }
-#     return ward_fees.get(admission["ward"], 0)
-
-# def calculate_ward_fee_from_row(admission_row):
-#     ward_name = admission_row["ward"]
-#     ward_fees = {"General": 500, "Maternity": 1000, "ICU": 2000}
-#     return ward_fees.get(ward_name, 0)
-
-# # In cashier_detail
-# admission_row = db.execute("SELECT * FROM admissions WHERE id=?", (admission_id,)).fetchone()
-# ward_fee = calculate_ward_fee_from_row(admission_row)
-
-
-
 
 
 
