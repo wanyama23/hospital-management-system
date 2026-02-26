@@ -1350,21 +1350,40 @@ def discharge(admission_id):
 #     flash("Patient discharged and sent to cashier for billing.", "success")
 #     return redirect(url_for("cashier_detail", admission_id=admission_id))
 
+
 @app.route("/cashier")
 def cashier():
     db = get_db()
+    orders = db.execute(
+        "SELECT * FROM cashier_orders WHERE status='pending'"
+    ).fetchall()
 
-    orders = db.execute("SELECT * FROM cashier_orders").fetchall()
-    billing = db.execute("SELECT * FROM billing").fetchall()  # or fetch one record
-
-    current_date = datetime.now().strftime("%Y-%m-%d")
+    billing_rows = db.execute(
+        "SELECT * FROM billing"
+    ).fetchall()
 
     return render_template(
         "cashier.html",
         orders=orders,
-        billing=billing,
-        current_date=current_date
+        billing=billing_rows,   # now you can use {{ billing }} in template
+        current_date=datetime.now().strftime("%Y-%m-%d")
     )
+
+# @app.route("/cashier")
+# def cashier():
+#     db = get_db()
+
+#     orders = db.execute("SELECT * FROM cashier_orders").fetchall()
+#     billing = db.execute("SELECT * FROM billing").fetchall()  # or fetch one record
+
+#     current_date = datetime.now().strftime("%Y-%m-%d")
+
+#     return render_template(
+#         "cashier.html",
+#         orders=orders,
+#         billing=billing,
+#         current_date=current_date
+#     )
 
 # @app.route('/cashier')
 # def cashier():
@@ -1599,6 +1618,10 @@ def mark_paid(patient_id):
 #     return redirect(url_for("cashier"))
 
 
+
+
+
+
 @app.route("/cashier/receipt/<int:order_id>")
 def receipt(order_id):
     db = get_db()
@@ -1632,6 +1655,40 @@ def receipt(order_id):
         med_total=med_total,
         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
     )
+
+# @app.route("/cashier/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     order_row = db.execute("""
+#         SELECT co.id, co.patient_id, co.amount, co.status,
+#                p.name AS patient_name,
+#                p.medical_record_number,
+#                p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order_row:
+#         flash("Receipt not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     order = dict(order_row)
+
+#     # Calculate breakdown
+#     med_total = calculate_medication_total(order["patient_id"], db)
+#     lab_total = calculate_lab_total(order["patient_id"], db)
+#     ward_fee = calculate_admission_total(order["patient_id"], db)
+
+#     return render_template(
+#         "receipt.html",
+#         order=order,
+#         ward_fee=ward_fee,
+#         lab_total=lab_total,
+#         med_total=med_total,
+#         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
+#     )
 
 
 
