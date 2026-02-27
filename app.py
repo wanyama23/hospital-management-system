@@ -180,30 +180,61 @@ def dashboard():
     today_sql = datetime.now().strftime('%Y-%m-%d')
     today_display = datetime.now().strftime('%A, %B %d, %Y')
 
+    # --- Stats ---
     stats = {
-        'total_patients': db.execute("SELECT COUNT(*) FROM patients WHERE is_active = 1").fetchone()[0],
-        'total_doctors': db.execute("SELECT COUNT(*) FROM doctors WHERE is_active = 1").fetchone()[0],
-        'today_appointments': db.execute("SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = ?", (today_sql,)).fetchone()[0],
-        'pending_appointments': db.execute("SELECT COUNT(*) FROM appointments WHERE status IN ('scheduled', 'confirmed')").fetchone()[0],
-        'completed_appointments_today': db.execute("SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = ? AND status = 'completed'", (today_sql,)).fetchone()[0],
-        'admitted_patients': db.execute("SELECT COUNT(*) FROM patients WHERE admission_status = 'admitted'").fetchone()[0],
-        'in_labor': db.execute("SELECT COUNT(*) FROM patients WHERE labor_status = 'active'").fetchone()[0],
-        'available_beds': db.execute("SELECT COUNT(*) FROM beds WHERE status = 'available'").fetchone()[0],
+        'total_patients': db.execute(
+            "SELECT COUNT(*) FROM patients WHERE is_active = 1"
+        ).fetchone()[0],
+
+        'total_doctors': db.execute(
+            "SELECT COUNT(*) FROM doctors WHERE is_active = 1"
+        ).fetchone()[0],
+
+        'today_appointments': db.execute(
+            "SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = ?",
+            (today_sql,)
+        ).fetchone()[0],
+
+        'pending_appointments': db.execute(
+            "SELECT COUNT(*) FROM appointments WHERE status IN ('scheduled', 'confirmed')"
+        ).fetchone()[0],
+
+        'completed_appointments_today': db.execute(
+            "SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = ? AND status = 'completed'",
+            (today_sql,)
+        ).fetchone()[0],
+
+        'admitted_patients': db.execute(
+            "SELECT COUNT(*) FROM patients WHERE admission_status = 'admitted'"
+        ).fetchone()[0],
+
+        'in_labor': db.execute(
+            "SELECT COUNT(*) FROM patients WHERE labor_status = 'active'"
+        ).fetchone()[0],
+
+        'available_beds': db.execute(
+            "SELECT COUNT(*) FROM beds WHERE status = 'available'"
+        ).fetchone()[0],
+
         'efficiency': 0
     }
 
-    queue = db.execute("""
-    SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name, a.status
-    FROM appointments a
-    JOIN patients p ON a.patient_id = p.id
-    WHERE DATE(a.appointment_date) = ? AND a.status IN ('scheduled', 'confirmed')
-    ORDER BY a.appointment_date ASC
-""", (today_sql,)).fetchall()
-
-
+    # --- Efficiency calculation ---
     if stats['today_appointments'] > 0:
-        stats['efficiency'] = round((stats['completed_appointments_today'] / stats['today_appointments']) * 100, 2)
+        stats['efficiency'] = round(
+            (stats['completed_appointments_today'] / stats['today_appointments']) * 100, 2
+        )
 
+    # --- Doctor Queue ---
+    queue = db.execute("""
+        SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name, a.status
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.id
+        WHERE DATE(a.appointment_date) = ? AND a.status IN ('scheduled', 'confirmed')
+        ORDER BY a.appointment_date ASC
+    """, (today_sql,)).fetchall()
+
+    # --- Today's Appointments ---
     appointments = db.execute("""
         SELECT a.*, 
                p.first_name || ' ' || p.last_name AS patient_name,
@@ -216,37 +247,87 @@ def dashboard():
         ORDER BY a.appointment_date ASC
     """, (today_sql,)).fetchall()
 
-    return render_template('dashboard.html', stats=stats, appointments=appointments, current_date=today_display)
+    return render_template(
+        'dashboard.html',
+        stats=stats,
+        appointments=appointments,
+        queue=queue,
+        current_date=today_display
+    )
+
+# @app.route('/')
+# def dashboard():
+#     db = get_db()
+#     today_sql = datetime.now().strftime('%Y-%m-%d')
+#     today_display = datetime.now().strftime('%A, %B %d, %Y')
+
+#     stats = {
+#         'total_patients': db.execute("SELECT COUNT(*) FROM patients WHERE is_active = 1").fetchone()[0],
+#         'total_doctors': db.execute("SELECT COUNT(*) FROM doctors WHERE is_active = 1").fetchone()[0],
+#         'today_appointments': db.execute("SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = ?", (today_sql,)).fetchone()[0],
+#         'pending_appointments': db.execute("SELECT COUNT(*) FROM appointments WHERE status IN ('scheduled', 'confirmed')").fetchone()[0],
+#         'completed_appointments_today': db.execute("SELECT COUNT(*) FROM appointments WHERE DATE(appointment_date) = ? AND status = 'completed'", (today_sql,)).fetchone()[0],
+#         'admitted_patients': db.execute("SELECT COUNT(*) FROM patients WHERE admission_status = 'admitted'").fetchone()[0],
+#         'in_labor': db.execute("SELECT COUNT(*) FROM patients WHERE labor_status = 'active'").fetchone()[0],
+#         'available_beds': db.execute("SELECT COUNT(*) FROM beds WHERE status = 'available'").fetchone()[0],
+#         'efficiency': 0
+#     }
+
+#     queue = db.execute("""
+#     SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name, a.status
+#     FROM appointments a
+#     JOIN patients p ON a.patient_id = p.id
+#     WHERE DATE(a.appointment_date) = ? AND a.status IN ('scheduled', 'confirmed')
+#     ORDER BY a.appointment_date ASC
+# """, (today_sql,)).fetchall()
 
 
-@app.route('/dashboard')
-def dashboard_view():
-    stats = {
-        'total_patients': 120,
-        'total_doctors': 15,
-        'today_appointments': 8,
-        'pending_appointments': 3,
-        'completed_appointments_today': 5,
-        'efficiency': 83,
-        'available_beds': 12,
-        'in_labor': 2
-    }
+#     if stats['today_appointments'] > 0:
+#         stats['efficiency'] = round((stats['completed_appointments_today'] / stats['today_appointments']) * 100, 2)
 
-    stats_grid = [
-        {'title': 'Total Patients', 'value': stats['total_patients']},
-        {'title': 'Active Doctors', 'value': stats['total_doctors']},
-        {'title': "Today's Appointments", 'value': stats['today_appointments']},
-        {'title': 'Pending Appointments', 'value': stats['pending_appointments']},
-        {'title': 'Admitted Patients', 'value': 18},
-        {'title': 'In Labor', 'value': stats['in_labor']}
-    ]
+#     appointments = db.execute("""
+#         SELECT a.*, 
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                d.first_name || ' ' || d.last_name AS doctor_name,
+#                strftime('%H:%M', a.appointment_date) AS time
+#         FROM appointments a
+#         JOIN patients p ON a.patient_id = p.id
+#         JOIN doctors d ON a.doctor_id = d.id
+#         WHERE DATE(a.appointment_date) = ?
+#         ORDER BY a.appointment_date ASC
+#     """, (today_sql,)).fetchall()
 
-    appointments = [
-        {'patient_name': 'Jane Doe', 'doctor_name': 'Dr. Otieno', 'time': '10:00 AM'},
-        {'patient_name': 'John Mwangi', 'doctor_name': 'Dr. Achieng', 'time': '11:30 AM'}
-    ]
+#     return render_template('dashboard.html', stats=stats, appointments=appointments, current_date=today_display)
 
-    return render_template('dashboard.html', stats=stats, stats_grid=stats_grid, appointments=appointments, current_date='September 10, 2025')
+
+# @app.route('/dashboard')
+# def dashboard_view():
+#     stats = {
+#         'total_patients': 120,
+#         'total_doctors': 15,
+#         'today_appointments': 8,
+#         'pending_appointments': 3,
+#         'completed_appointments_today': 5,
+#         'efficiency': 83,
+#         'available_beds': 12,
+#         'in_labor': 2
+#     }
+
+#     stats_grid = [
+#         {'title': 'Total Patients', 'value': stats['total_patients']},
+#         {'title': 'Active Doctors', 'value': stats['total_doctors']},
+#         {'title': "Today's Appointments", 'value': stats['today_appointments']},
+#         {'title': 'Pending Appointments', 'value': stats['pending_appointments']},
+#         {'title': 'Admitted Patients', 'value': 18},
+#         {'title': 'In Labor', 'value': stats['in_labor']}
+#     ]
+
+#     appointments = [
+#         {'patient_name': 'Jane Doe', 'doctor_name': 'Dr. Otieno', 'time': '10:00 AM'},
+#         {'patient_name': 'John Mwangi', 'doctor_name': 'Dr. Achieng', 'time': '11:30 AM'}
+#     ]
+
+#     return render_template('dashboard.html', stats=stats, stats_grid=stats_grid, appointments=appointments, current_date='September 10, 2025')
 
 
 
@@ -422,7 +503,6 @@ def doctor_interface(patient_id):
         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
     )
 
-
 @app.route('/doctor', methods=['GET', 'POST'])
 def doctor():
     db = get_db()
@@ -434,7 +514,7 @@ def doctor():
         prescriptions = request.form['prescriptions']
         billing_amount = request.form['billing_amount']
 
-        # Update patient status to awaiting_pharmacy
+        # Update patient record
         db.execute("""
             UPDATE patients 
             SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
@@ -458,6 +538,7 @@ def doctor():
         flash('Prescription saved, patient sent to pharmacy and cashier!')
         return redirect(url_for('doctor'))
 
+    # --- GET request: show doctor interface ---
     patients = db.execute("""
         SELECT id AS patient_id, first_name || ' ' || last_name AS name, status
         FROM patients
@@ -465,8 +546,67 @@ def doctor():
         ORDER BY updated_at ASC
     """).fetchall()
 
+    # Fetch available beds for admission options
+    available_beds = db.execute("""
+        SELECT bed_number, ward
+        FROM beds
+        WHERE status='available'
+        ORDER BY ward, bed_number
+    """).fetchall()
+
     current_date = datetime.now().strftime('%A, %B %d, %Y')
-    return render_template('doctor.html', patients=patients, current_date=current_date)
+
+    return render_template(
+        'doctor.html',
+        patients=patients,
+        current_date=current_date,
+        available_beds=available_beds
+    )
+
+# @app.route('/doctor', methods=['GET', 'POST'])
+# def doctor():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         symptoms = request.form['symptoms']
+#         diagnosis = request.form['diagnosis']
+#         prescriptions = request.form['prescriptions']
+#         billing_amount = request.form['billing_amount']
+
+#         # Update patient status to awaiting_pharmacy
+#         db.execute("""
+#             UPDATE patients 
+#             SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
+#                 billing_amount=?, updated_at=CURRENT_TIMESTAMP
+#             WHERE id=?
+#         """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+#         # Insert pharmacy order
+#         db.execute("""
+#             INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#             VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#         """, (patient_id, prescriptions, 'Dr. Wanyama'))
+
+#         # Insert cashier order
+#         db.execute("""
+#             INSERT INTO cashier_orders (patient_id, amount, status)
+#             VALUES (?, ?, 'pending')
+#         """, (patient_id, billing_amount))
+
+#         db.commit()
+#         flash('Prescription saved, patient sent to pharmacy and cashier!')
+#         return redirect(url_for('doctor'))
+
+#     patients = db.execute("""
+#         SELECT id AS patient_id, first_name || ' ' || last_name AS name, status
+#         FROM patients
+#         WHERE status IN ('scheduled', 'awaiting_doctor')
+#         ORDER BY updated_at ASC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('doctor.html', patients=patients, current_date=current_date)
 
 
 
@@ -521,28 +661,6 @@ def examine(patient_id):
         current_date=current_date,
         available_beds=available_beds   # 👈 Pass into template
     )
-
-# @app.route('/doctor/examine/<int:patient_id>', methods=['GET', 'POST'])
-# def examine_patient(patient_id):
-#     db = get_db()
-#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
-
-#     if request.method == 'POST':
-#         symptoms = request.form['symptoms']
-#         diagnosis = request.form['diagnosis']
-#         prescriptions = request.form['prescriptions']
-#         tests = request.form['tests']
-
-#         db.execute("""
-#             UPDATE patients 
-#             SET symptoms = ?, diagnosis = ?, prescriptions = ?, tests_ordered = ?, updated_at = CURRENT_TIMESTAMP 
-#             WHERE id = ?
-#         """, (symptoms, diagnosis, prescriptions, tests, patient_id))
-#         db.commit()
-#         flash('Patient updated successfully!')
-#         return redirect(url_for('doctor'))
-
-#     return render_template('examine.html', patient=patient)
 
 
 @app.route('/doctor/autosave/<int:patient_id>', methods=['POST'])
@@ -602,22 +720,51 @@ def doctor_dashboard(patient_id):
 @app.route('/notify_doctor_ready/<int:appointment_id>')
 def notify_doctor_ready(appointment_id):
     db = get_db()
+
     appointment = db.execute("""
-        SELECT a.*, d.contact AS doctor_contact, p.first_name || ' ' || p.last_name AS patient_name
+        SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name,
+               d.id AS doctor_id, d.first_name || ' ' || d.last_name AS doctor_name
         FROM appointments a
-        JOIN doctors d ON a.doctor_id = d.id
         JOIN patients p ON a.patient_id = p.id
+        JOIN doctors d ON a.doctor_id = d.id
         WHERE a.id = ?
     """, (appointment_id,)).fetchone()
 
-    try:
-        sms.send(f"Patient {appointment['patient_name']} is ready for examination.", [appointment['doctor_contact']])
-        flash('Doctor notified successfully.', 'success')
-    except Exception as e:
-        print("SMS failed:", e)
-        flash('Failed to notify doctor.', 'danger')
+    if not appointment:
+        flash("Appointment not found.", "danger")
+        return redirect(url_for("dashboard"))
 
-    return redirect(url_for('dashboard'))
+    # Example: update doctor contact if needed
+    db.execute("""
+        UPDATE doctors
+        SET contact = ?
+        WHERE id = ?
+    """, ("0712345678", appointment["doctor_id"]))
+    db.commit()
+
+    flash(f"Doctor {appointment['doctor_name']} notified successfully!", "success")
+    return redirect(url_for("dashboard"))
+
+
+# @app.route('/notify_doctor_ready/<int:appointment_id>')
+# def notify_doctor_ready(appointment_id):
+#     db = get_db()
+#     appointment = db.execute("""
+#         SELECT a.*, d.contact AS doctor_contact, p.first_name || ' ' || p.last_name AS patient_name
+#         FROM appointments a
+#         JOIN doctors d ON a.doctor_id = d.id
+#         JOIN patients p ON a.patient_id = p.id
+#         WHERE a.id = ?
+#     """, (appointment_id,)).fetchone()
+
+#     try:
+#         sms.send(f"Patient {appointment['patient_name']} is ready for examination.", [appointment['doctor_contact']])
+#         flash('Doctor notified successfully.', 'success')
+#     except Exception as e:
+#         print("SMS failed:", e)
+#         flash('Failed to notify doctor.', 'danger')
+
+#     return redirect(url_for('dashboard'))
 
 
 @app.route('/doctor_ready/<int:appointment_id>')
@@ -1177,11 +1324,11 @@ def admission():
 
 
 # --- Discharge Route ---
-@app.route("/discharge/<int:admission_id>", methods=["POST"])
+@app.route("/discharge/<int:admission_id>", methods=["POST"], endpoint="discharge")
 def discharge(admission_id):
     db = get_db()
 
-    # Fetch admission row
+    # --- Fetch admission row ---
     admission_row = db.execute(
         "SELECT * FROM admissions WHERE id=?", (admission_id,)
     ).fetchone()
@@ -1190,9 +1337,7 @@ def discharge(admission_id):
         flash("Admission record not found.", "danger")
         return redirect(url_for("admission"))
 
-    # Convert sqlite3.Row to dict immediately
     admission = dict(admission_row)
-
     patient_id = admission["patient_id"]
     bed_number = admission["bed_number"]
 
@@ -1227,10 +1372,71 @@ def discharge(admission_id):
         VALUES (?, ?, ?, ?, ?, ?, 'pending')
     """, (admission_id, patient_id, ward_fee, lab_total, med_total, total_amount))
 
+    # --- Insert cashier order (so it shows in cashier template) ---
+    db.execute("""
+        INSERT INTO cashier_orders (patient_id, amount, status)
+        VALUES (?, ?, 'pending')
+    """, (patient_id, total_amount))
+
     db.commit()
 
     flash("Patient discharged and sent to cashier for billing.", "success")
     return redirect(url_for("cashier_detail", admission_id=admission_id))
+
+# @app.route("/discharge/<int:admission_id>", methods=["POST"])
+# def discharge(admission_id):
+#     db = get_db()
+
+#     # Fetch admission row
+#     admission_row = db.execute(
+#         "SELECT * FROM admissions WHERE id=?", (admission_id,)
+#     ).fetchone()
+
+#     if not admission_row:
+#         flash("Admission record not found.", "danger")
+#         return redirect(url_for("admission"))
+
+#     # Convert sqlite3.Row to dict immediately
+#     admission = dict(admission_row)
+
+#     patient_id = admission["patient_id"]
+#     bed_number = admission["bed_number"]
+
+#     # --- Mark admission as discharged ---
+#     db.execute("""
+#         UPDATE admissions
+#         SET status='discharged', discharged_at=CURRENT_TIMESTAMP
+#         WHERE id=?
+#     """, (admission_id,))
+
+#     # --- Free up bed ---
+#     db.execute(
+#         "UPDATE beds SET status='available', patient_id=NULL WHERE bed_number=?",
+#         (bed_number,)
+#     )
+
+#     # --- Reset patient admission_status ---
+#     db.execute(
+#         "UPDATE patients SET admission_status='not_admitted' WHERE id=?",
+#         (patient_id,)
+#     )
+
+#     # --- Calculate billing totals ---
+#     ward_fee = calculate_ward_fee(admission, db)
+#     lab_total = calculate_lab_total(patient_id, db)
+#     med_total = calculate_medication_total(patient_id, db)
+#     total_amount = ward_fee + lab_total + med_total
+
+#     # --- Insert billing record ---
+#     db.execute("""
+#         INSERT INTO billing (admission_id, patient_id, ward_fee, lab_total, med_total, total_amount, status)
+#         VALUES (?, ?, ?, ?, ?, ?, 'pending')
+#     """, (admission_id, patient_id, ward_fee, lab_total, med_total, total_amount))
+
+#     db.commit()
+
+#     flash("Patient discharged and sent to cashier for billing.", "success")
+#     return redirect(url_for("cashier_detail", admission_id=admission_id))
 
 
 @app.route("/cashier")
@@ -1264,42 +1470,106 @@ def calculate_ward_fee_from_row(admission_row):
 
 
 
-
 @app.route("/cashier/<int:admission_id>")
 def cashier_detail(admission_id):
-    db = get_db()  # ✅ define db inside the route
+    db = get_db()
 
-    # Fetch admission record once
+    # --- Fetch admission record ---
     admission_row = db.execute(
         "SELECT * FROM admissions WHERE id=?", (admission_id,)
     ).fetchone()
 
     if not admission_row:
+        flash("Admission record not found.", "danger")
         return redirect(url_for("admission"))
 
-    patient_id = admission_row["patient_id"]
+    admission = dict(admission_row)
+    patient_id = admission["patient_id"]
 
-    # Use the already-fetched row
-    ward_fee = calculate_ward_fee_from_row(admission_row)
+    # --- Calculate billing totals ---
+    ward_fee = calculate_ward_fee(admission, db)
     lab_total = calculate_lab_total(patient_id, db)
     med_total = calculate_medication_total(patient_id, db)
-
     total_amount = ward_fee + lab_total + med_total
 
-    db.execute(
-        "UPDATE billing SET total_amount=? WHERE admission_id=?",
-        (total_amount, admission_id),
-    )
+    # --- Ensure billing record exists ---
+    existing_bill = db.execute(
+        "SELECT * FROM billing WHERE admission_id=?", (admission_id,)
+    ).fetchone()
+
+    if existing_bill:
+        # Update totals if billing record already exists
+        db.execute("""
+            UPDATE billing
+            SET ward_fee=?, lab_total=?, med_total=?, total_amount=?
+            WHERE admission_id=?
+        """, (ward_fee, lab_total, med_total, total_amount, admission_id))
+    else:
+        # Insert new billing record if missing
+        db.execute("""
+            INSERT INTO billing (admission_id, patient_id, ward_fee, lab_total, med_total, total_amount, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        """, (admission_id, patient_id, ward_fee, lab_total, med_total, total_amount))
+
     db.commit()
+
+    # --- Fetch billing record for display ---
+    bill = db.execute("""
+        SELECT b.*, p.first_name || ' ' || p.last_name AS patient_name
+        FROM billing b
+        JOIN patients p ON b.patient_id = p.id
+        WHERE b.admission_id=?
+    """, (admission_id,)).fetchone()
+
+    if not bill:
+        flash("Billing record not found.", "danger")
+        return redirect(url_for("cashier"))
 
     return render_template(
         "cashier.html",
-        admission=admission_row,
+        admission=admission,
+        bill=bill,
         ward_fee=ward_fee,
         lab_total=lab_total,
         med_total=med_total,
-        total_amount=total_amount,
+        total_amount=total_amount
     )
+
+# @app.route("/cashier/<int:admission_id>")
+# def cashier_detail(admission_id):
+#     db = get_db()  # ✅ define db inside the route
+
+#     # Fetch admission record once
+#     admission_row = db.execute(
+#         "SELECT * FROM admissions WHERE id=?", (admission_id,)
+#     ).fetchone()
+
+#     if not admission_row:
+#         return redirect(url_for("admission"))
+
+#     patient_id = admission_row["patient_id"]
+
+#     # Use the already-fetched row
+#     ward_fee = calculate_ward_fee_from_row(admission_row)
+#     lab_total = calculate_lab_total(patient_id, db)
+#     med_total = calculate_medication_total(patient_id, db)
+
+#     total_amount = ward_fee + lab_total + med_total
+
+#     db.execute(
+#         "UPDATE billing SET total_amount=? WHERE admission_id=?",
+#         (total_amount, admission_id),
+#     )
+#     db.commit()
+
+#     return render_template(
+#         "cashier.html",
+#         admission=admission_row,
+#         ward_fee=ward_fee,
+#         lab_total=lab_total,
+#         med_total=med_total,
+#         total_amount=total_amount,
+#     )
 
 
 
@@ -1951,7 +2221,7 @@ def search():
     return render_template('search.html', results=results)
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5000)
 
 
 

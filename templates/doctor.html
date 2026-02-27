@@ -78,7 +78,7 @@
         <div class="panel">
           <h5 class="mb-3">Patient: {{ patient['first_name'] }} {{ patient['last_name'] }}</h5>
 
-          <form method="POST" action="{{ url_for('examine_patient', patient_id=patient['id']) }}">
+          <form method="POST" action="{{ url_for('examine', patient_id=patient['id']) }}">
             <!-- Symptoms -->
             <div class="mb-3">
               <label for="symptoms" class="form-label">Symptoms</label>
@@ -134,8 +134,64 @@
                class="btn btn-outline-dark">
               <i class="fas fa-file-medical me-2"></i>Print Report
             </a>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#admitModal">
+          <i class="fas fa-bed me-2"></i>Admit Patient
+        </button>
+        <!-- Send to Labor Ward Button -->
+        <a href="{{ url_for('admit_to_labor', patient_id=patient.id) }}" 
+           class="btn btn-outline-danger">
+          <i class="fas fa-baby me-2"></i>Send to Labor Ward
+        </a>
           </div>
         </div>
+
+        <div class="modal fade" id="admitModal" tabindex="-1" aria-labelledby="admitModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="POST" action="{{ url_for('admit_from_exam', patient_id=patient.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="admitModalLabel">Admit Patient</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Ward Selection -->
+            <div class="mb-3">
+              <label for="ward" class="form-label">Ward</label>
+              <select class="form-select" id="ward" name="ward" required>
+                <option value="">-- Select Ward --</option>
+                <option value="General">General</option>
+                <option value="Surgical">Surgical</option>
+                <option value="Maternity">Maternity</option>
+                <option value="Pediatrics">Pediatrics</option>
+              </select>
+            </div>
+
+            <!-- Bed Selection -->
+            <div class="mb-3">
+              <label for="bed_number" class="form-label">Bed</label>
+              <select class="form-select" id="bed_number" name="bed_number" required>
+                {% for bed in available_beds %}
+                  <option value="{{ bed.bed_number }}" data-ward="{{ bed.ward }}">
+                    {{ bed.bed_number }} ({{ bed.ward }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Reason -->
+            <div class="mb-3">
+              <label for="reason" class="form-label">Reason</label>
+              <textarea class="form-control" id="reason" name="reason" rows="2" placeholder="Reason for admission"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger">Admit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
         {% else %}
         <!-- Today's Patients -->
@@ -174,12 +230,27 @@
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const wardSelect = document.getElementById("ward");
+    const bedSelect = document.getElementById("bed_number");
+
+    function filterBeds() {
+      const selectedWard = wardSelect.value;
+      for (let option of bedSelect.options) {
+        if (!selectedWard || option.dataset.ward === selectedWard) {
+          option.style.display = "block";
+        } else {
+          option.style.display = "none";
+        }
+      }
+      // Reset selection when ward changes
+      bedSelect.value = "";
+    }
+
+    wardSelect.addEventListener("change", filterBeds);
+  });
+  </script>
 </body>
 </html>
-
-
-
-
-
-
-
