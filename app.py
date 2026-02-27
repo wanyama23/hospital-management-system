@@ -1347,13 +1347,12 @@ def mark_paid(patient_id):
     # ✅ Redirect directly to receipt page
     return redirect(url_for("receipt", order_id=order_id))
 
-
 @app.route("/cashier/receipt/<int:order_id>")
 def receipt(order_id):
     db = get_db()
 
     order_row = db.execute("""
-        SELECT co.id, co.patient_id, co.amount, co.status,
+        SELECT co.id, co.patient_id, co.amount, co.status, co.date_paid,
                p.name AS patient_name,
                p.medical_record_number,
                p.card_number
@@ -1368,17 +1367,87 @@ def receipt(order_id):
 
     order = dict(order_row)
 
-    # ✅ Use helper function
+    # ✅ Use helper function for totals
     totals = calculate_total_bill(order["patient_id"], db)
 
     return render_template(
         "receipt.html",
-        order=order,
-        ward_fee=totals["ward_total"],
-        lab_total=totals["lab_total"],
+        order=order,   # <-- pass the order object here
+        medicines=totals["medicines"],
+        labs=totals["labs"],
+        wards=totals["wards"],
         med_total=totals["med_total"],
+        lab_total=totals["lab_total"],
+        ward_total=totals["ward_total"],
         total_amount=totals["total_amount"]
     )
+
+# @app.route("/cashier/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     order_row = db.execute("""
+#         SELECT co.id, co.patient_id, co.amount, co.status,
+#                p.name AS patient_name,
+#                p.medical_record_number,
+#                p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order_row:
+#         flash("Receipt not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     order = dict(order_row)
+
+#     # ✅ Use helper function
+#     totals = calculate_total_bill(order["patient_id"], db)
+
+#     return render_template(
+#         "receipt.html",
+#         order_id=order_id,
+#         medicines=totals["medicines"],
+#         labs=totals["labs"],
+#         wards=totals["wards"],
+#         med_total=totals["med_total"],
+#         lab_total=totals["lab_total"],
+#         ward_total=totals["ward_total"],
+#         total_amount=totals["total_amount"]
+#     )
+
+# @app.route("/cashier/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     order_row = db.execute("""
+#         SELECT co.id, co.patient_id, co.amount, co.status,
+#                p.name AS patient_name,
+#                p.medical_record_number,
+#                p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order_row:
+#         flash("Receipt not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     order = dict(order_row)
+
+#     # ✅ Use helper function
+#     totals = calculate_total_bill(order["patient_id"], db)
+
+#     return render_template(
+#         "receipt.html",
+#         order=order,
+#         ward_fee=totals["ward_total"],
+#         lab_total=totals["lab_total"],
+#         med_total=totals["med_total"],
+#         total_amount=totals["total_amount"]
+#     )
 
 
 
@@ -1576,46 +1645,98 @@ def calculate_medication_total(patient_id, db):
     return 0
 
 
+# def calculate_total_bill(patient_id, db):
+#     """
+#     Calculate the total bill for a patient by summing
+#     medicine, lab, and ward charges.
+#     """
+
+#     # --- Medicines ---
+#     med_total = db.execute("""
+#         SELECT COALESCE(SUM(p.quantity * m.unit_price), 0)
+#         FROM prescriptions p
+#         JOIN medicines m ON p.medicine_id = m.id
+#         WHERE p.patient_id=?
+#     """, (patient_id,)).fetchone()[0]
+
+#     # --- Lab Tests ---
+#     lab_total = db.execute("""
+#         SELECT COALESCE(SUM(l.test_price), 0)
+#         FROM lab_orders o
+#         JOIN lab_tests l ON o.test_id = l.id
+#         WHERE o.patient_id=?
+#     """, (patient_id,)).fetchone()[0]
+
+#     # --- Ward Charges ---
+#     ward_total = db.execute("""
+#         SELECT COALESCE(SUM(w.daily_rate * 
+#                (julianday(a.discharged_at) - julianday(a.admitted_at))), 0)
+#         FROM admissions a
+#         JOIN wards w ON a.ward = w.ward_name
+#         WHERE a.patient_id=?
+#           AND a.discharged_at IS NOT NULL
+#     """, (patient_id,)).fetchone()[0]
+
+#     # --- Total ---
+#     total_amount = med_total + lab_total + ward_total
+#     return {
+#         "med_total": med_total,
+#         "lab_total": lab_total,
+#         "ward_total": ward_total,
+#         "total_amount": total_amount
+#     }
 def calculate_total_bill(patient_id, db):
     """
-    Calculate the total bill for a patient by summing
-    medicine, lab, and ward charges.
+    Calculate the total bill for a patient including medicines, lab tests, and ward charges.
+    Returns a breakdown with individual prices and totals.
     """
 
     # --- Medicines ---
-    med_total = db.execute("""
-        SELECT COALESCE(SUM(p.quantity * m.unit_price), 0)
+    medicines = db.execute("""
+        SELECT m.name, p.quantity, m.unit_price, (p.quantity * m.unit_price) AS subtotal
         FROM prescriptions p
         JOIN medicines m ON p.medicine_id = m.id
         WHERE p.patient_id=?
-    """, (patient_id,)).fetchone()[0]
+    """, (patient_id,)).fetchall()
+
+    med_total = sum(row["subtotal"] for row in medicines)
 
     # --- Lab Tests ---
-    lab_total = db.execute("""
-        SELECT COALESCE(SUM(l.test_price), 0)
+    labs = db.execute("""
+        SELECT l.test_name, l.test_price
         FROM lab_orders o
         JOIN lab_tests l ON o.test_id = l.id
         WHERE o.patient_id=?
-    """, (patient_id,)).fetchone()[0]
+    """, (patient_id,)).fetchall()
+
+    lab_total = sum(row["test_price"] for row in labs)
 
     # --- Ward Charges ---
-    ward_total = db.execute("""
-        SELECT COALESCE(SUM(w.daily_rate * 
-               (julianday(a.discharged_at) - julianday(a.admitted_at))), 0)
+    wards = db.execute("""
+        SELECT w.ward_name, w.daily_rate,
+               (julianday(a.discharged_at) - julianday(a.admitted_at)) AS days,
+               (w.daily_rate * (julianday(a.discharged_at) - julianday(a.admitted_at))) AS subtotal
         FROM admissions a
         JOIN wards w ON a.ward = w.ward_name
         WHERE a.patient_id=?
           AND a.discharged_at IS NOT NULL
-    """, (patient_id,)).fetchone()[0]
+    """, (patient_id,)).fetchall()
+
+    ward_total = sum(row["subtotal"] for row in wards)
 
     # --- Total ---
     total_amount = med_total + lab_total + ward_total
+
     return {
+        "medicines": [dict(row) for row in medicines],
+        "labs": [dict(row) for row in labs],
+        "wards": [dict(row) for row in wards],
         "med_total": med_total,
         "lab_total": lab_total,
         "ward_total": ward_total,
         "total_amount": total_amount
     }
+
 
 
 

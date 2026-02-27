@@ -7,7 +7,7 @@
   <style>
     body { background-color: #f8f9fa; }
     .receipt-container {
-      max-width: 600px;
+      max-width: 800px;
       margin: 40px auto;
       background: white;
       padding: 30px;
@@ -16,6 +16,7 @@
     }
     .receipt-header { text-align: center; margin-bottom: 20px; }
     .receipt-footer { text-align: center; margin-top: 30px; font-size: 0.9em; color: #6c757d; }
+    table th, table td { text-align: center; }
   </style>
 </head>
 <body>
@@ -37,13 +38,64 @@
 
     <hr>
     <h5>Breakdown of Charges</h5>
-    <table class="table">
-      <tr><td>Ward Fee</td><td>KES {{ ward_fee }}</td></tr>
-      <tr><td>Lab Tests</td><td>KES {{ lab_total }}</td></tr>
-      <tr><td>Medications</td><td>KES {{ med_total }}</td></tr>
-      <tr><th>Total</th><th>KES {{ order.amount }}</th></tr>
+
+    <!-- ✅ Medicine Charges -->
+    <h6>Medicine Charges</h6>
+    <table class="table table-bordered">
+      <thead>
+        <tr><th>Name</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr>
+      </thead>
+      <tbody>
+        {% for med in medicines %}
+          <tr>
+            <td>{{ med.name }}</td>
+            <td>{{ med.quantity }}</td>
+            <td>KES {{ med.unit_price }}</td>
+            <td>KES {{ med.subtotal }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
     </table>
+    <p><strong>Total Medicines:</strong> KES {{ med_total }}</p>
+
+    <!-- ✅ Lab Charges -->
+    <h6>Lab Charges</h6>
+    <table class="table table-bordered">
+      <thead>
+        <tr><th>Test</th><th>Price</th></tr>
+      </thead>
+      <tbody>
+        {% for lab in labs %}
+          <tr>
+            <td>{{ lab.test_name }}</td>
+            <td>KES {{ lab.test_price }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p><strong>Total Labs:</strong> KES {{ lab_total }}</p>
+
+    <!-- ✅ Ward Charges -->
+    <h6>Ward Charges</h6>
+    <table class="table table-bordered">
+      <thead>
+        <tr><th>Ward</th><th>Daily Rate</th><th>Days</th><th>Subtotal</th></tr>
+      </thead>
+      <tbody>
+        {% for ward in wards %}
+          <tr>
+            <td>{{ ward.ward_name }}</td>
+            <td>KES {{ ward.daily_rate }}</td>
+            <td>{{ ward.days }}</td>
+            <td>KES {{ ward.subtotal }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p><strong>Total Wards:</strong> KES {{ ward_total }}</p>
+
     <hr>
+    <h4>Grand Total: KES {{ total_amount }}</h4>
 
     <div class="receipt-footer">
       <p>Thank you for choosing MediCore Hospital</p>
