@@ -30,36 +30,38 @@
       <small id="current-time"></small>
     </div>
 
-    <p><strong>Patient Name:</strong> {{ order.patient_name }}</p>
+    <h2>Receipt</h2>
+    <p><strong>Patient:</strong> {{ order.patient_name }}</p>
     <p><strong>MRN:</strong> {{ order.medical_record_number }}</p>
-    <p><strong>Card Number:</strong> {{ order.card_number }}</p>
+    <p><strong>Card No:</strong> {{ order.card_number }}</p>
     <p><strong>Order ID:</strong> {{ order.id }}</p>
     <p><strong>Status:</strong> {{ order.status }}</p>
-
     <hr>
-    <h5>Breakdown of Charges</h5>
 
-    <!-- ✅ Medicine Charges -->
-    <h6>Medicine Charges</h6>
+    <!-- ✅ Admission / Base Fee -->
+    <p><strong>Admission / Base Fee:</strong> KES {{ "{:,}".format(base_amount or 0) }}</p>
+
+    <!-- ✅ Medicines -->
+    <h3>Medicines</h3>
     <table class="table table-bordered">
       <thead>
-        <tr><th>Name</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr>
+        <tr><th>Name</th><th>Dosage</th><th>Unit Price</th><th>Subtotal</th></tr>
       </thead>
       <tbody>
         {% for med in medicines %}
           <tr>
             <td>{{ med.name }}</td>
-            <td>{{ med.quantity }}</td>
-            <td>KES {{ med.unit_price }}</td>
-            <td>KES {{ med.subtotal }}</td>
+            <td>{{ med.dosage }}</td>
+            <td>KES {{ "{:,}".format(med.unit_price or 0) }}</td>
+            <td>KES {{ "{:,}".format(med.subtotal or 0) }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-    <p><strong>Total Medicines:</strong> KES {{ med_total }}</p>
+    <p><strong>Medicines Total:</strong> KES {{ "{:,}".format(med_total or 0) }}</p>
 
-    <!-- ✅ Lab Charges -->
-    <h6>Lab Charges</h6>
+    <!-- ✅ Lab Tests -->
+    <h3>Lab Tests</h3>
     <table class="table table-bordered">
       <thead>
         <tr><th>Test</th><th>Price</th></tr>
@@ -68,15 +70,15 @@
         {% for lab in labs %}
           <tr>
             <td>{{ lab.test_name }}</td>
-            <td>KES {{ lab.test_price }}</td>
+            <td>KES {{ "{:,}".format(lab.unit_price or 0) }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-    <p><strong>Total Labs:</strong> KES {{ lab_total }}</p>
+    <p><strong>Labs Total:</strong> KES {{ "{:,}".format(lab_total or 0) }}</p>
 
     <!-- ✅ Ward Charges -->
-    <h6>Ward Charges</h6>
+    <h3>Ward Charges</h3>
     <table class="table table-bordered">
       <thead>
         <tr><th>Ward</th><th>Daily Rate</th><th>Days</th><th>Subtotal</th></tr>
@@ -85,17 +87,17 @@
         {% for ward in wards %}
           <tr>
             <td>{{ ward.ward_name }}</td>
-            <td>KES {{ ward.daily_rate }}</td>
-            <td>{{ ward.days }}</td>
-            <td>KES {{ ward.subtotal }}</td>
+            <td>KES {{ "{:,}".format(ward.daily_rate or 0) }}</td>
+            <td>{{ ward.days or 0 }}</td>
+            <td>KES {{ "{:,}".format(ward.subtotal or 0) }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-    <p><strong>Total Wards:</strong> KES {{ ward_total }}</p>
+    <p><strong>Ward Total:</strong> KES {{ "{:,}".format(ward_total or 0) }}</p>
 
     <hr>
-    <h4>Grand Total: KES {{ total_amount }}</h4>
+    <h2>Grand Total: KES {{ "{:,}".format(total_amount or 0) }}</h2>
 
     <div class="receipt-footer">
       <p>Thank you for choosing MediCore Hospital</p>

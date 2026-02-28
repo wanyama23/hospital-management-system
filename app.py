@@ -513,6 +513,8 @@ def doctor():
         diagnosis = request.form['diagnosis']
         prescriptions = request.form['prescriptions']
         billing_amount = request.form['billing_amount']
+        ward_selected = request.form.get('ward')   # doctor selects ward
+        bed_selected = request.form.get('bed_number')
 
         # Update patient record
         db.execute("""
@@ -521,6 +523,14 @@ def doctor():
                 billing_amount=?, updated_at=CURRENT_TIMESTAMP
             WHERE id=?
         """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+        # Assign bed if chosen
+        if bed_selected and ward_selected:
+            db.execute("""
+                UPDATE beds
+                SET status='occupied'
+                WHERE bed_number=? AND ward=? AND status='available'
+            """, (bed_selected, ward_selected))
 
         # Insert pharmacy order
         db.execute("""
@@ -546,13 +556,25 @@ def doctor():
         ORDER BY updated_at ASC
     """).fetchall()
 
-    # Fetch available beds for admission options
-    available_beds = db.execute("""
-        SELECT bed_number, ward
+    # Fetch wards for dropdown
+    wards = db.execute("""
+        SELECT DISTINCT ward
         FROM beds
         WHERE status='available'
-        ORDER BY ward, bed_number
+        ORDER BY ward
     """).fetchall()
+
+    # If a ward is selected, filter beds
+    ward_selected = request.args.get('ward')
+    if ward_selected:
+        available_beds = db.execute("""
+            SELECT bed_number, ward
+            FROM beds
+            WHERE status='available' AND ward=?
+            ORDER BY bed_number
+        """, (ward_selected,)).fetchall()
+    else:
+        available_beds = []
 
     current_date = datetime.now().strftime('%A, %B %d, %Y')
 
@@ -560,8 +582,71 @@ def doctor():
         'doctor.html',
         patients=patients,
         current_date=current_date,
-        available_beds=available_beds
+        wards=wards,
+        available_beds=available_beds,
+        ward_selected=ward_selected
     )
+
+
+# @app.route('/doctor', methods=['GET', 'POST'])
+# def doctor():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         symptoms = request.form['symptoms']
+#         diagnosis = request.form['diagnosis']
+#         prescriptions = request.form['prescriptions']
+#         billing_amount = request.form['billing_amount']
+
+#         # Update patient record
+#         db.execute("""
+#             UPDATE patients 
+#             SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
+#                 billing_amount=?, updated_at=CURRENT_TIMESTAMP
+#             WHERE id=?
+#         """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+#         # Insert pharmacy order
+#         db.execute("""
+#             INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#             VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#         """, (patient_id, prescriptions, 'Dr. Wanyama'))
+
+#         # Insert cashier order
+#         db.execute("""
+#             INSERT INTO cashier_orders (patient_id, amount, status)
+#             VALUES (?, ?, 'pending')
+#         """, (patient_id, billing_amount))
+
+#         db.commit()
+#         flash('Prescription saved, patient sent to pharmacy and cashier!')
+#         return redirect(url_for('doctor'))
+
+#     # --- GET request: show doctor interface ---
+#     patients = db.execute("""
+#         SELECT id AS patient_id, first_name || ' ' || last_name AS name, status
+#         FROM patients
+#         WHERE status IN ('scheduled', 'awaiting_doctor')
+#         ORDER BY updated_at ASC
+#     """).fetchall()
+
+#     # Fetch available beds for admission options
+#     available_beds = db.execute("""
+#         SELECT bed_number, ward
+#         FROM beds
+#         WHERE status='available'
+#         ORDER BY ward, bed_number
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+
+#     return render_template(
+#         'doctor.html',
+#         patients=patients,
+#         current_date=current_date,
+#         available_beds=available_beds
+#     )
 
 # @app.route('/doctor', methods=['GET', 'POST'])
 # def doctor():
@@ -1617,40 +1702,328 @@ def mark_paid(patient_id):
     # ✅ Redirect directly to receipt page
     return redirect(url_for("receipt", order_id=order_id))
 
-@app.route("/cashier/receipt/<int:order_id>")
+
+@app.route("/receipt/<int:order_id>")
 def receipt(order_id):
     db = get_db()
 
-    order_row = db.execute("""
-        SELECT co.id, co.patient_id, co.amount, co.status, co.date_paid,
-               p.name AS patient_name,
-               p.medical_record_number,
-               p.card_number
+    # Fetch order details including amount
+    order = db.execute("""
+        SELECT co.id, co.patient_id, co.status, co.date_paid, co.amount,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               p.medical_record_number, p.card_number
         FROM cashier_orders co
         JOIN patients p ON co.patient_id = p.id
         WHERE co.id=?
     """, (order_id,)).fetchone()
 
-    if not order_row:
-        flash("Receipt not found.", "danger")
-        return redirect(url_for("cashier"))
+    # Medicines
+    medicines = db.execute("""
+        SELECT m.name, pm.dosage, m.unit_price,
+               (pm.dosage * m.unit_price) AS subtotal
+        FROM patient_medicines pm
+        JOIN medicines m ON pm.medicine_id = m.id
+        WHERE pm.patient_id=?
+    """, (order["patient_id"],)).fetchall()
+    med_total = sum((m["subtotal"] or 0) for m in medicines) if medicines else 0
 
-    order = dict(order_row)
+    # Labs
+    labs = db.execute("""
+        SELECT test_name, unit_price
+        FROM lab_orders
+        WHERE patient_id=?
+    """, (order["patient_id"],)).fetchall()
+    lab_total = sum((l["unit_price"] or 0) for l in labs) if labs else 0
 
-    # ✅ Use helper function for totals
-    totals = calculate_total_bill(order["patient_id"], db)
+    # Wards
+    wards = db.execute("""
+        SELECT ward_name, daily_rate, days, (daily_rate * days) AS subtotal
+        FROM ward_charges
+        WHERE patient_id=?
+    """, (order["patient_id"],)).fetchall()
+    ward_total = sum((w["subtotal"] or 0) for w in wards) if wards else 0
+
+    # Base cashier amount (admission fee, etc.)
+    base_amount = order["amount"] or 0
+
+    # Grand total
+    total_amount = base_amount + med_total + lab_total + ward_total
 
     return render_template(
         "receipt.html",
-        order=order,   # <-- pass the order object here
-        medicines=totals["medicines"],
-        labs=totals["labs"],
-        wards=totals["wards"],
-        med_total=totals["med_total"],
-        lab_total=totals["lab_total"],
-        ward_total=totals["ward_total"],
-        total_amount=totals["total_amount"]
+        order=order,
+        medicines=medicines,
+        labs=labs,
+        wards=wards,
+        med_total=med_total,
+        lab_total=lab_total,
+        ward_total=ward_total,
+        base_amount=base_amount,
+        total_amount=total_amount
     )
+
+
+# @app.route("/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     # Fetch order details
+#     order = db.execute("""
+#         SELECT co.id, co.patient_id, co.status, co.date_paid,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                p.medical_record_number, p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     # ✅ Medicines
+#     medicines = db.execute("""
+#         SELECT m.name, pm.dosage, m.unit_price,
+#                (pm.dosage * m.unit_price) AS subtotal
+#         FROM patient_medicines pm
+#         JOIN medicines m ON pm.medicine_id = m.id
+#         WHERE pm.patient_id=?
+#     """, (order["patient_id"],)).fetchall()
+#     med_total = sum((m["subtotal"] or 0) for m in medicines) if medicines else 0
+
+#     # ✅ Labs
+#     labs = db.execute("""
+#         SELECT test_name, unit_price
+#         FROM lab_orders
+#         WHERE patient_id=?
+#     """, (order["patient_id"],)).fetchall()
+#     lab_total = sum((l["unit_price"] or 0) for l in labs) if labs else 0
+
+#     # ✅ Wards
+#     wards = db.execute("""
+#         SELECT ward_name, daily_rate, days, (daily_rate * days) AS subtotal
+#         FROM ward_charges
+#         WHERE patient_id=?
+#     """, (order["patient_id"],)).fetchall()
+#     ward_total = sum((w["subtotal"] or 0) for w in wards) if wards else 0
+
+#     # ✅ Grand total
+#     total_amount = med_total + lab_total + ward_total
+
+#     return render_template(
+#         "receipt.html",
+#         order=order,
+#         medicines=medicines,
+#         labs=labs,
+#         wards=wards,
+#         med_total=med_total,
+#         lab_total=lab_total,
+#         ward_total=ward_total,
+#         total_amount=total_amount
+#     )
+
+# @app.route("/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     # Fetch order details
+#     order = db.execute("""
+#         SELECT co.id, co.patient_id, co.status, co.date_paid,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                p.medical_record_number, p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     # Medicines
+#     medicines = db.execute("""
+#     SELECT m.name, pm.dosage, m.unit_price,
+#            (pm.dosage * m.unit_price) AS subtotal
+#     FROM patient_medicines pm
+#     JOIN medicines m ON pm.medicine_id = m.id
+#     WHERE pm.patient_id=?
+# """, (order["patient_id"],)).fetchall()
+# med_total = sum((m["subtotal"] or 0) for m in medicines) if medicines else 0
+
+# labs = db.execute("""
+#     SELECT test_name, unit_price
+#     FROM lab_orders
+#     WHERE patient_id=?
+# """, (order["patient_id"],)).fetchall()
+# lab_total = sum((l["unit_price"] or 0) for l in labs) if labs else 0
+
+# wards = db.execute("""
+#     SELECT ward_name, daily_rate, days, (daily_rate * days) AS subtotal
+#     FROM ward_charges
+#     WHERE patient_id=?
+# """, (order["patient_id"],)).fetchall()
+# ward_total = sum((w["subtotal"] or 0) for w in wards) if wards else 0
+
+# # ✅ Grand total
+#     total_amount = med_total + lab_total + ward_total
+
+#     medicines = db.execute("""
+#     SELECT m.name, pm.dosage, m.unit_price,
+#            (pm.dosage * m.unit_price) AS subtotal
+#     FROM patient_medicines pm
+#     JOIN medicines m ON pm.medicine_id = m.id
+#     WHERE pm.patient_id=?
+# """, (order["patient_id"],)).fetchall()
+
+#     med_total = sum(m["subtotal"] for m in medicines)
+
+#     medicines = db.execute("""
+#     SELECT m.name, pm.quantity, m.unit_price,
+#            (pm.quantity * m.unit_price) AS subtotal
+#     FROM patient_medicines pm
+#     JOIN medicines m ON pm.medicine_id = m.id
+#     WHERE pm.patient_id=?
+# """, (order["patient_id"],)).fetchall()
+
+    # medicines = db.execute("""
+    #     SELECT name, quantity, unit_price, (quantity * unit_price) AS subtotal
+    #     FROM medicines
+    #     WHERE patient_id=?
+    # """, (order["patient_id"],)).fetchall()
+    # med_total = sum(m["subtotal"] for m in medicines)
+
+    # Labs
+#     labs = db.execute("""
+#     SELECT test_name, price
+#     FROM lab_orders
+#     WHERE patient_id=?
+# """, (order["patient_id"],)).fetchall()
+#     lab_total = sum((l["price"] or 0) for l in labs)
+
+    # lab_total = sum(l["price"] for l in labs)
+
+    # labs = db.execute("""
+    #     SELECT test_name, test_price
+    #     FROM lab_orders
+    #     WHERE patient_id=?
+    # """, (order["patient_id"],)).fetchall()
+    # lab_total = sum(l["test_price"] for l in labs)
+
+    # Wards
+    # wards = db.execute("""
+    #     SELECT ward_name, daily_rate, days, (daily_rate * days) AS subtotal
+    #     FROM ward_charges
+    #     WHERE patient_id=?
+    # """, (order["patient_id"],)).fetchall()
+    # ward_total = sum(w["subtotal"] for w in wards)
+
+    # # Grand total
+    # total_amount = med_total + lab_total + ward_total
+
+    # return render_template(
+    #     "receipt.html",
+    #     order=order,
+    #     medicines=medicines,
+    #     labs=labs,
+    #     wards=wards,
+    #     med_total=med_total,
+    #     lab_total=lab_total,
+    #     ward_total=ward_total,
+    #     total_amount=total_amount
+    # )
+
+# @app.route("/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     # Fetch order info
+#     order = db.execute("""
+#         SELECT co.id, co.patient_id, co.status, co.date_paid,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                p.medical_record_number, p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order:
+#         flash("Order not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     # Medicines breakdown
+#     medicines = db.execute("""
+#         SELECT m.name, pm.quantity, m.unit_price,
+#                (pm.quantity * m.unit_price) AS subtotal
+#         FROM patient_medicines pm
+#         JOIN medicines m ON pm.medicine_id = m.id
+#         WHERE pm.patient_id=?
+#     """, (order["patient_id"],)).fetchall()
+
+#     med_total = sum([row["subtotal"] for row in medicines])
+
+#     # Labs breakdown
+#     labs = db.execute("""
+#         SELECT l.test_name, l.test_price
+#         FROM lab_orders lo
+#         JOIN labs l ON lo.lab_id = l.id
+#         WHERE lo.patient_id=?
+#     """, (order["patient_id"],)).fetchall()
+
+#     lab_total = sum([row["test_price"] for row in labs])
+
+#     # Wards breakdown
+#     wards = db.execute("""
+#         SELECT w.ward_name, w.daily_rate,
+#                julianday(a.discharged_at) - julianday(a.admitted_at) AS days,
+#                ((julianday(a.discharged_at) - julianday(a.admitted_at)) * w.daily_rate) AS subtotal
+#         FROM admissions a
+#         JOIN wards w ON a.ward = w.ward_name
+#         WHERE a.patient_id=?
+#     """, (order["patient_id"],)).fetchall()
+
+#     ward_total = sum([row["subtotal"] for row in wards])
+
+#     # Grand total
+#     total_amount = med_total + lab_total + ward_total
+
+#     return render_template(
+#         "receipt.html",
+#         order=order,
+#         medicines=medicines,
+#         labs=labs,
+#         wards=wards,
+#         med_total=med_total,
+#         lab_total=lab_total,
+#         ward_total=ward_total,
+#         total_amount=total_amount
+#     )
+
+# @app.route("/cashier/receipt/<int:order_id>")
+# def receipt(order_id):
+#     db = get_db()
+
+#     order_row = db.execute("""
+#         SELECT co.id, co.patient_id, co.amount, co.status, co.date_paid,
+#                p.name AS patient_name,
+#                p.medical_record_number,
+#                p.card_number
+#         FROM cashier_orders co
+#         JOIN patients p ON co.patient_id = p.id
+#         WHERE co.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order_row:
+#         flash("Receipt not found.", "danger")
+#         return redirect(url_for("cashier"))
+
+#     order = dict(order_row)
+
+#     # ✅ Use helper function for totals
+#     totals = calculate_total_bill(order["patient_id"], db)
+
+#     return render_template(
+#         "receipt.html",
+#         order=order,   # <-- pass the order object here
+#         medicines=totals["medicines"],
+#         labs=totals["labs"],
+#         wards=totals["wards"],
+#         med_total=totals["med_total"],
+#         lab_total=totals["lab_total"],
+#         ward_total=totals["ward_total"],
+#         total_amount=totals["total_amount"]
+#     )
 
 # @app.route("/cashier/receipt/<int:order_id>")
 # def receipt(order_id):
