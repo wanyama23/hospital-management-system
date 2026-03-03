@@ -94,11 +94,50 @@
             </div>
 
             <!-- Prescriptions -->
-            <div class="mb-3">
+             <div class="mb-3">
+  <label class="form-label">Prescriptions</label>
+  <div id="prescriptions-container">
+    <!-- Initial prescription row -->
+    <div class="row mb-2 prescription-row">
+      <div class="col-md-6">
+        <select class="form-select medicine-select" name="medicine_ids[]" required>
+          <option value="">-- Select Medicine --</option>
+          {% for med in medicines %}
+            <option value="{{ med.id }}" data-price="{{ med.unit_price }}">
+              {{ med.name }} (KES {{ med.unit_price }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="number" class="form-control quantity-input" name="quantities[]" min="1" value="1" required>
+      </div>
+      <div class="col-md-3">
+        <button type="button" class="btn btn-danger remove-row">Remove</button>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="btn btn-secondary mt-2" id="add-prescription">+ Add Medicine</button>
+</div>
+
+<!-- Hidden billing amount field -->
+<input type="hidden" id="billing_amount" name="billing_amount">
+<p><strong>Total Bill:</strong> KES <span id="billing_display">0</span></p>
+             <!-- <label for="prescriptions">Prescribe Medicine:</label>
+<select name="prescriptions" id="prescriptions" class="form-select">
+  <option value="">-- Select Medicine --</option>
+  {% for med in medicines %}
+    <option value="{{ med.id }}">
+      {{ med.name }} (KES {{ med.unit_price }})
+    </option>
+  {% endfor %}
+</select> -->
+
+            <!-- <div class="mb-3">
               <label for="prescriptions" class="form-label">Prescriptions</label>
               <textarea class="form-control" id="prescriptions" name="prescriptions" rows="3"
                         placeholder="Enter prescriptions">{{ patient['prescriptions'] or '' }}</textarea>
-            </div>
+            </div> -->
 
             <!-- Lab Tests -->
             <div class="mb-3">
@@ -219,7 +258,7 @@
           <div class="col-md-6 text-center">
             <div class="panel">
               <i class="bi bi-stethoscope stethoscope-icon mb-3"></i>
-              <h5>Select a patient from the queue to begin examination</h5>
+              <h5>Results of patients from the lab</h5>
             </div>
           </div>
         </div>
@@ -251,6 +290,25 @@
 
     wardSelect.addEventListener("change", filterBeds);
   });
-  </script>
+  
+
+  
+document.addEventListener("DOMContentLoaded", function() {
+  const prescriptionSelect = document.getElementById("prescriptions");
+  const billingInput = document.getElementById("billing_amount");
+  const billingDisplay = document.getElementById("billing_display");
+
+  prescriptionSelect.addEventListener("change", function() {
+    const selectedOption = prescriptionSelect.options[prescriptionSelect.selectedIndex];
+    if (selectedOption && selectedOption.dataset.price) {
+      billingInput.value = selectedOption.dataset.price;
+      billingDisplay.textContent = selectedOption.dataset.price;
+    } else {
+      billingInput.value = "";
+      billingDisplay.textContent = "0";
+    }
+  });
+});
+</script>
 </body>
 </html>

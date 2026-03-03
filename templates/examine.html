@@ -51,12 +51,52 @@
                     placeholder="Enter diagnosis">{{ patient.diagnosis or '' }}</textarea>
         </div>
 
-        <!-- Prescriptions -->
-        <div class="mb-3">
+        <!-- Prescriptions Dropdown -->
+         <!-- Prescriptions -->
+<div class="mb-3">
+  <label class="form-label">Prescriptions</label>
+  <div id="prescriptions-container">
+    <!-- Initial prescription row -->
+    <div class="row mb-2 prescription-row">
+      <div class="col-md-6">
+        <select class="form-select medicine-select" name="medicine_ids[]" required>
+          <option value="">-- Select Medicine --</option>
+          {% for med in medicines %}
+            <option value="{{ med.id }}" data-price="{{ med.unit_price }}">
+              {{ med.name }} (KES {{ med.unit_price }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="number" class="form-control quantity-input" name="quantities[]" min="1" value="1" required>
+      </div>
+      <div class="col-md-3">
+        <button type="button" class="btn btn-danger remove-row">Remove</button>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="btn btn-secondary mt-2" id="add-prescription">+ Add Medicine</button>
+</div>
+
+<!-- Hidden billing amount field -->
+<input type="hidden" id="billing_amount" name="billing_amount">
+<p><strong>Total Bill:</strong> KES <span id="billing_display">0</span></p>
+
+        <!-- <div class="mb-3">
           <label for="prescriptions" class="form-label">Prescriptions</label>
-          <textarea class="form-control" id="prescriptions" name="prescriptions" rows="3" 
-                    placeholder="Enter prescriptions">{{ patient.prescriptions or '' }}</textarea>
-        </div>
+          <select class="form-select" id="prescriptions" name="prescriptions" required>
+            <option value="">-- Select Medicine --</option>
+            {% for med in medicines %}
+              <option value="{{ med.id }}" data-price="{{ med.unit_price }}">
+                {{ med.name }} (KES {{ med.unit_price }})
+              </option>
+            {% endfor %}
+          </select>
+        </div> -->
+
+        <!-- Hidden billing amount field -->
+        <input type="hidden" id="billing_amount" name="billing_amount">
 
         <!-- Lab Tests -->
         <div class="mb-3">
@@ -85,9 +125,14 @@
           <i class="fas fa-flask me-2"></i>Send to Lab
         </a>
         <a href="{{ url_for('send_to_pharmacy', patient_id=patient.id) }}" 
+   class="btn btn-outline-success">
+   <i class="fas fa-pills me-2"></i>Send to Pharmacy
+</a>
+
+        <!-- <a href="{{ url_for('send_to_pharmacy', patient_id=patient.id) }}" 
            class="btn btn-outline-success">
           <i class="fas fa-pills me-2"></i>Send to Pharmacy
-        </a>
+        </a> -->
         <a href="{{ url_for('prescription_pdf', patient_id=patient.id) }}" 
            class="btn btn-outline-dark">
           <i class="fas fa-file-medical me-2"></i>Print Report
@@ -172,12 +217,72 @@
           option.style.display = "none";
         }
       }
-      // Reset selection when ward changes
       bedSelect.value = "";
     }
 
     wardSelect.addEventListener("change", filterBeds);
+
+    // ✅ Auto-fill billing amount when medicine selected
+    const prescriptionSelect = document.getElementById("prescriptions");
+    const billingInput = document.getElementById("billing_amount");
+
+    prescriptionSelect.addEventListener("change", function() {
+      const selectedOption = prescriptionSelect.options[prescriptionSelect.selectedIndex];
+      if (selectedOption && selectedOption.dataset.price) {
+        billingInput.value = selectedOption.dataset.price;
+      } else {
+        billingInput.value = "";
+      }
+    });
   });
+  
+
+document.addEventListener("DOMContentLoaded", function() {
+  const container = document.getElementById("prescriptions-container");
+  const addBtn = document.getElementById("add-prescription");
+  const billingInput = document.getElementById("billing_amount");
+  const billingDisplay = document.getElementById("billing_display");
+
+  function updateTotal() {
+    let total = 0;
+    document.querySelectorAll(".prescription-row").forEach(row => {
+      const select = row.querySelector(".medicine-select");
+      const qtyInput = row.querySelector(".quantity-input");
+      const price = select.options[select.selectedIndex]?.dataset.price || 0;
+      const qty = qtyInput.value || 0;
+      total += parseFloat(price) * parseInt(qty);
+    });
+    billingInput.value = total;
+    billingDisplay.textContent = total;
+  }
+
+  // Add new row
+  addBtn.addEventListener("click", function() {
+    const newRow = container.querySelector(".prescription-row").cloneNode(true);
+    newRow.querySelector(".medicine-select").value = "";
+    newRow.querySelector(".quantity-input").value = 1;
+    container.appendChild(newRow);
+    attachEvents(newRow);
+  });
+
+  // Attach events to row
+  function attachEvents(row) {
+    row.querySelector(".medicine-select").addEventListener("change", updateTotal);
+    row.querySelector(".quantity-input").addEventListener("input", updateTotal);
+    row.querySelector(".remove-row").addEventListener("click", function() {
+      row.remove();
+      updateTotal();
+    });
+  }
+
+  // Attach to initial row
+  document.querySelectorAll(".prescription-row").forEach(attachEvents);
+
+  updateTotal();
+});
+
+
+
   </script>
 </body>
 </html>
