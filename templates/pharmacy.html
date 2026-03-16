@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>Pharmacy Dashboard | MediCore</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -34,6 +34,10 @@
       padding: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
+    .order-card { margin-bottom:1rem; }
+    .line-total { font-weight:600; }
+    .small-muted { font-size:.9rem; color:#6c757d; }
+    .table-fixed { table-layout: fixed; word-wrap: break-word; }
   </style>
 </head>
 <body>
@@ -49,8 +53,6 @@
         <a href="{{ url_for('labor_delivery') }}"><i class="fas fa-baby me-2"></i>Labor & Delivery</a>
         <a href="{{ url_for('lab') }}"><i class="fas fa-flask me-2"></i>Lab</a>
         <a href="{{ url_for('pharmacy') }}" class="active"><i class="fas fa-pills me-2"></i>Pharmacy</a>
-
-        <!-- <a href="{{ url_for('pharmacy') }}" class="active"><i class="fas fa-pills me-2"></i>Pharmacy</a> -->
         <a href="{{ url_for('cashier') }}"><i class="fas fa-cash-register me-2"></i>Cashier</a>
         <a href="{{ url_for('patients') }}"><i class="fas fa-users me-2"></i>Patients</a>
         <a href="{{ url_for('medical_reports') }}"><i class="fas fa-file-medical me-2"></i>Medical Reports</a>
@@ -72,43 +74,168 @@
           {% endif %}
         {% endwith %}
 
-        {% if orders %}
-        <div class="panel mb-4">
-          <h5 class="mb-3">Pending Prescriptions</h5>
-          <table class="table table-striped align-middle">
-            <thead class="table-dark">
-              <tr>
-                <th>Order ID</th>
-                <th>MRN</th>
-                <th>Patient</th>
-                <th>Prescription</th>
-                <th>Ordered By</th>
-                <th>Ordered At</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for order in orders %}
-              <tr>
-                <td>{{ order.id }}</td>
-                <td>{{ order.medical_record_number }}</td>
-                <td>{{ order.patient_name }}</td>
-                <td>{{ order.prescription }}</td>
-                <td>{{ order.ordered_by }}</td>
-                <td>{{ order.created_at }}</td>
-                <td><span class="badge bg-warning text-dark">{{ order.status }}</span></td>
-                <td>
-                  <form method="POST" action="{{ url_for('fulfill_order') }}">
-                    <input type="hidden" name="order_id" value="{{ order.id }}">
-                    <button type="submit" class="btn btn-success btn-sm">Mark Fulfilled</button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        {% if orders and orders|length > 0 %}
+          <!-- Overview table -->
+          <div class="panel mb-4">
+            <h5 class="mb-3">Pending Prescriptions — Overview</h5>
+            <div class="table-responsive">
+              <table class="table table-striped align-middle table-fixed">
+                <thead class="table-dark">
+                  <tr>
+                    <th style="width:6%">Order ID</th>
+                    <th style="width:8%">MRN</th>
+                    <th style="width:18%">Patient</th>
+                    <th style="width:34%">Prescription (summary)</th>
+                    <th style="width:10%">Ordered By</th>
+                    <th style="width:12%">Ordered At</th>
+                    <th style="width:6%">Status</th>
+                    <th style="width:6%">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in orders %}
+                    {% if item.order is defined %}
+                      {% set o = item.order %}
+                      <tr>
+                        <td>{{ o.order_id }}</td>
+                        <td>{{ o.medical_record_number }}</td>
+                        <td>{{ o.patient_name }}</td>
+                        <td>
+                          {% if item.medicines %}
+                            {% for m in item.medicines %}
+                              {{ m.name }} x{{ m.quantity }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                          {% else %}
+                            {{ o.prescription or '—' }}
+                          {% endif %}
+                        </td>
+                        <td>{{ o.ordered_by or '—' }}</td>
+                        <td class="small-muted">{{ o.created_at }}</td>
+                        <td><span class="badge bg-warning text-dark">{{ o.status }}</span></td>
+                        <td>
+                          <div class="d-grid gap-1">
+                            <form method="POST" action="{{ url_for('fulfill_order') }}">
+                              <input type="hidden" name="order_id" value="{{ o.order_id }}">
+                              <button type="submit" class="btn btn-success btn-sm">Fulfill</button>
+                            </form>
+                            <a href="#order-{{ o.order_id }}" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse">Details</a>
+                          </div>
+                        </td>
+                      </tr>
+                    {% else %}
+                      <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.medical_record_number }}</td>
+                        <td>{{ item.patient_name }}</td>
+                        <td>{{ item.prescription or '—' }}</td>
+                        <td>{{ item.ordered_by or '—' }}</td>
+                        <td class="small-muted">{{ item.created_at }}</td>
+                        <td><span class="badge bg-warning text-dark">{{ item.status }}</span></td>
+                        <td>
+                          <form method="POST" action="{{ url_for('fulfill_order') }}">
+                            <input type="hidden" name="order_id" value="{{ item.id }}">
+                            <button type="submit" class="btn btn-success btn-sm">Fulfill</button>
+                          </form>
+                        </td>
+                      </tr>
+                    {% endif %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Detailed cards -->
+          <div class="mb-4">
+            <h5 class="mb-3">Order Details</h5>
+
+            {% for item in orders %}
+              {% if item.order is defined %}
+                {% set o = item.order %}
+                <div class="card order-card mb-3" id="order-{{ o.order_id }}">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>Patient:</strong> {{ o.patient_name }} &nbsp;
+                      <small class="text-muted">(MRN: {{ o.medical_record_number }})</small>
+                    </div>
+                    <div>
+                      <small class="text-muted">Order #{{ o.order_id }} • {{ o.created_at }}</small>
+                    </div>
+                  </div>
+
+                  <div class="card-body">
+                    {% if item.medicines and item.medicines|length > 0 %}
+                      <div class="table-responsive">
+                        <table class="table table-sm mb-3">
+                          <thead>
+                            <tr>
+                              <th>Medicine</th>
+                              <th class="text-center">Qty</th>
+                              <th class="text-end">Unit Price</th>
+                              <th class="text-end">Line Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for m in item.medicines %}
+                              <tr>
+                                <td>{{ m.name }}</td>
+                                <td class="text-center">{{ m.quantity }}</td>
+                                <td class="text-end">{{ "%.2f"|format(m.unit_price) }}</td>
+                                <td class="text-end">{{ "%.2f"|format(m.line_total) }}</td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td colspan="3" class="text-end"><strong>Total</strong></td>
+                              <td class="text-end line-total">{{ "%.2f"|format(item.total) }}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    {% else %}
+                      <p class="mb-3"><strong>Prescription:</strong> {{ o.prescription or '—' }}</p>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                      <form method="POST" action="{{ url_for('complete_pharmacy_order', order_id=o.order_id) }}">
+                        <button type="submit" class="btn btn-success">Mark as Dispensed</button>
+                      </form>
+
+                      <a href="{{ url_for('view_patient', patient_id=o.patient_id) }}" class="btn btn-outline-secondary">View Patient</a>
+
+                      <form method="POST" action="{{ url_for('print_pharmacy_receipt', order_id=o.order_id) }}" target="_blank">
+                        <button type="submit" class="btn btn-primary">Print Receipt</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              {% else %}
+                <div class="card order-card mb-3">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>Patient:</strong> {{ item.patient_name }} &nbsp;
+                      <small class="text-muted">(MRN: {{ item.medical_record_number }})</small>
+                    </div>
+                    <div>
+                      <small class="text-muted">Order #{{ item.id }} • {{ item.created_at }}</small>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <p class="mb-3"><strong>Prescription:</strong> {{ item.prescription or '—' }}</p>
+                    <div class="d-flex gap-2">
+                      <form method="POST" action="{{ url_for('fulfill_order') }}">
+                        <input type="hidden" name="order_id" value="{{ item.id }}">
+                        <button type="submit" class="btn btn-success">Mark Fulfilled</button>
+                      </form>
+                      <a href="{{ url_for('view_patient', patient_id=item.patient_id) }}" class="btn btn-outline-secondary">View Patient</a>
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
         {% else %}
           <div class="alert alert-info">No pending prescriptions at the moment.</div>
         {% endif %}

@@ -473,17 +473,118 @@ def register():
     return render_template('register.html', generated_mrn=generated_mrn)
 
 
+@app.route('/patient_card/<int:patient_id>')
+def patient_card(patient_id):
+    db = get_db()
+    patient = db.execute("""
+        SELECT id, first_name, last_name, medical_record_number, card_number
+        FROM patients
+        WHERE id=?
+    """, (patient_id,)).fetchone()
+
+    if not patient:
+        flash("Patient not found.", "danger")
+        return redirect(url_for("register"))
+
+    # Build full name
+    full_name = f"{patient['first_name']} {patient['last_name']}"
+
+    # Pass everything into template
+    return render_template(
+        'patient_card.html',
+        full_name=full_name,
+        mrn=patient['medical_record_number'],
+        card_number=patient['card_number'],
+        patient_id=patient['id']
+    )
+
+
 @app.route('/print_card/<int:patient_id>')
 def print_card(patient_id):
     db = get_db()
-    patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    patient = db.execute("""
+        SELECT id, first_name, last_name, medical_record_number, card_number
+        FROM patients
+        WHERE id=?
+    """, (patient_id,)).fetchone()
+
     if not patient:
         flash("Patient not found.", "danger")
-        return redirect(url_for('register'))
+        return redirect(url_for("register"))
 
-    # Render the patient card template
-    return render_template('patient_card.html', patient=patient)
+    full_name = f"{patient['first_name']} {patient['last_name']}"
 
+    return render_template(
+        'patient_card.html',
+        full_name=full_name,
+        mrn=patient['medical_record_number'],
+        card_number=patient['card_number'],
+        patient_id=patient['id']
+    )
+
+# @app.route('/patient_card/<int:patient_id>')
+# def patient_card(patient_id):
+#     db = get_db()
+#     patient = db.execute("""
+#         SELECT id, first_name, last_name, medical_record_number, card_number
+#         FROM patients
+#         WHERE id=?
+#     """, (patient_id,)).fetchone()
+
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for("register"))
+
+#     full_name = f"{patient['first_name']} {patient['last_name']}"
+
+#     return render_template(
+#         'patient_card.html',
+#         full_name=full_name,
+#         mrn=patient['medical_record_number'],
+#         card_number=patient['card_number'],
+#         patient_id=patient['id']
+#     )
+
+# @app.route('/print_card/<int:patient_id>')
+# def print_card(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for('register'))
+
+#     # Render the patient card template
+#     return render_template('patient_card.html', patient=patient)
+
+
+
+@app.route('/send_to_doctor', methods=['POST'])
+def send_to_doctor():
+    db = get_db()
+    patient_id = request.form.get('patient_id')
+    if not patient_id:
+        flash('Missing patient id', 'danger')
+        return redirect(url_for('dashboard'))
+
+    patient = db.execute("SELECT id FROM patients WHERE id = ?", (patient_id,)).fetchone()
+    if not patient:
+        flash('Patient not found', 'danger')
+        return redirect(url_for('dashboard'))
+
+    db.execute("""
+        INSERT INTO doctor_queue (patient_id, queued_at, status)
+        VALUES (?, CURRENT_TIMESTAMP, 'pending')
+    """, (patient_id,))
+
+    db.execute("""
+        UPDATE patients
+        SET status = 'awaiting_doctor'
+        WHERE id = ?
+    """, (patient_id,))
+
+    db.commit()
+    flash('Patient sent to doctor queue', 'success')
+    return redirect(url_for('doctor'))
 
 
 @app.route('/doctor/<int:patient_id>', methods=['GET'])
@@ -503,6 +604,207 @@ def doctor_interface(patient_id):
         current_date=datetime.now().strftime("%Y-%m-%d %H:%M")
     )
 
+@app.route('/doctor', methods=['GET', 'POST'])
+def doctor():
+    db = get_db()
+
+    if request.method == 'POST':
+        patient_id = request.form['patient_id']
+        symptoms = request.form['symptoms']
+        diagnosis = request.form['diagnosis']
+        prescriptions = request.form['prescriptions']
+        billing_amount = request.form['billing_amount']
+        ward_selected = request.form.get('ward')
+        bed_selected = request.form.get('bed_number')
+
+        # Update patient record
+        db.execute("""
+            UPDATE patients 
+            SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
+                billing_amount=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+        # Assign bed if chosen
+        if bed_selected and ward_selected:
+            db.execute("""
+                UPDATE beds
+                SET status='occupied'
+                WHERE bed_number=? AND ward=? AND status='available'
+            """, (bed_selected, ward_selected))
+
+        # Insert pharmacy order
+        db.execute("""
+            INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+        """, (patient_id, prescriptions, 'Dr. Wanyama'))
+
+        # Insert cashier order
+        db.execute("""
+            INSERT INTO cashier_orders (patient_id, amount, status)
+            VALUES (?, ?, 'pending')
+        """, (patient_id, billing_amount))
+
+        # Mark patient as examined in doctor_queue
+        db.execute("""
+            UPDATE doctor_queue
+            SET status='examined'
+            WHERE patient_id=?
+        """, (patient_id,))
+
+        db.commit()
+        flash('Diagnosis and prescription saved. Patient sent to pharmacy and cashier!', 'success')
+        return redirect(url_for('doctor_dashboard'))
+
+    # --- GET request: show doctor interface ---
+    patients = db.execute("""
+        SELECT p.id AS patient_id,
+               p.medical_record_number,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               dq.queued_at,
+               dq.status
+        FROM doctor_queue dq
+        JOIN patients p ON dq.patient_id = p.id
+        WHERE dq.status = 'pending'
+        ORDER BY dq.queued_at ASC
+    """).fetchall()
+
+    wards = db.execute("""
+        SELECT DISTINCT ward
+        FROM beds
+        WHERE status='available'
+        ORDER BY ward
+    """).fetchall()
+
+    ward_selected = request.args.get('ward')
+    if ward_selected:
+        available_beds = db.execute("""
+            SELECT bed_number, ward
+            FROM beds
+            WHERE status='available' AND ward=?
+            ORDER BY bed_number
+        """, (ward_selected,)).fetchall()
+    else:
+        available_beds = []
+
+    medicines = db.execute("""
+        SELECT id, name, unit_price
+        FROM medicines
+        ORDER BY name
+    """).fetchall()
+
+    current_date = datetime.now().strftime('%A, %B %d, %Y')
+
+    return render_template(
+        'doctor.html',
+        patients=patients,
+        current_date=current_date,
+        wards=wards,
+        available_beds=available_beds,
+        ward_selected=ward_selected,
+        medicines=medicines
+    )
+
+# @app.route('/doctor', methods=['GET', 'POST'])
+# def doctor():
+#     db = get_db()
+
+#     if request.method == 'POST':
+#         patient_id = request.form['patient_id']
+#         symptoms = request.form['symptoms']
+#         diagnosis = request.form['diagnosis']
+#         prescriptions = request.form['prescriptions']
+#         billing_amount = request.form['billing_amount']
+#         ward_selected = request.form.get('ward')
+#         bed_selected = request.form.get('bed_number')
+
+#         # Update patient record
+#         db.execute("""
+#             UPDATE patients 
+#             SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
+#                 billing_amount=?, updated_at=CURRENT_TIMESTAMP
+#             WHERE id=?
+#         """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
+
+#         # Assign bed if chosen
+#         if bed_selected and ward_selected:
+#             db.execute("""
+#                 UPDATE beds
+#                 SET status='occupied'
+#                 WHERE bed_number=? AND ward=? AND status='available'
+#             """, (bed_selected, ward_selected))
+
+#         # Insert pharmacy order
+#         db.execute("""
+#             INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#             VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#         """, (patient_id, prescriptions, 'Dr. Wanyama'))
+
+#         # Insert cashier order
+#         db.execute("""
+#             INSERT INTO cashier_orders (patient_id, amount, status)
+#             VALUES (?, ?, 'pending')
+#         """, (patient_id, billing_amount))
+
+#         # Mark patient as examined in doctor_queue
+#         db.execute("""
+#             UPDATE doctor_queue
+#             SET status='examined'
+#             WHERE patient_id=?
+#         """, (patient_id,))
+
+#         db.commit()
+#         flash('Diagnosis and prescription saved. Patient sent to pharmacy and cashier!', 'success')
+#         return redirect(url_for('doctor_dashboard'))
+
+#     # --- GET request: show doctor interface ---
+#     patients = db.execute("""
+#         SELECT p.id AS patient_id,
+#                p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                dq.queued_at,
+#                dq.status
+#         FROM doctor_queue dq
+#         JOIN patients p ON dq.patient_id = p.id
+#         WHERE dq.status = 'pending'
+#         ORDER BY dq.queued_at ASC
+#     """).fetchall()
+
+#     wards = db.execute("""
+#         SELECT DISTINCT ward
+#         FROM beds
+#         WHERE status='available'
+#         ORDER BY ward
+#     """).fetchall()
+
+#     ward_selected = request.args.get('ward')
+#     if ward_selected:
+#         available_beds = db.execute("""
+#             SELECT bed_number, ward
+#             FROM beds
+#             WHERE status='available' AND ward=?
+#             ORDER BY bed_number
+#         """, (ward_selected,)).fetchall()
+#     else:
+#         available_beds = []
+
+#     medicines = db.execute("""
+#         SELECT id, name, unit_price
+#         FROM medicines
+#         ORDER BY name
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+
+#     return render_template(
+#         'doctor.html',
+#         patients=patients,
+#         current_date=current_date,
+#         wards=wards,
+#         available_beds=available_beds,
+#         ward_selected=ward_selected,
+#         medicines=medicines
+#     )
 
 # @app.route('/doctor', methods=['GET', 'POST'])
 # def doctor():
@@ -546,15 +848,19 @@ def doctor_interface(patient_id):
 #         """, (patient_id, billing_amount))
 
 #         db.commit()
-#         flash('Prescription saved, patient sent to pharmacy and cashier!')
-#         return redirect(url_for('doctor'))
+#         flash('Diagnosis and prescription saved. Patient sent to pharmacy and cashier!', 'success')
+#         return redirect(url_for('doctor_dashboard'))
 
 #     # --- GET request: show doctor interface ---
 #     patients = db.execute("""
-#         SELECT id AS patient_id, first_name || ' ' || last_name AS name, status
-#         FROM patients
-#         WHERE status IN ('scheduled', 'awaiting_doctor')
-#         ORDER BY updated_at ASC
+#         SELECT p.id AS patient_id, p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                lr.results, lr.created_at, lo.test_name
+#         FROM patients p
+#         JOIN lab_orders lo ON lo.patient_id = p.id
+#         JOIN lab_results lr ON lr.order_id = lo.id
+#         WHERE p.status = 'awaiting_doctor'
+#         ORDER BY lr.created_at DESC
 #     """).fetchall()
 
 #     wards = db.execute("""
@@ -575,7 +881,6 @@ def doctor_interface(patient_id):
 #     else:
 #         available_beds = []
 
-#     # ✅ Fetch medicines for dropdown
 #     medicines = db.execute("""
 #         SELECT id, name, unit_price
 #         FROM medicines
@@ -593,99 +898,6 @@ def doctor_interface(patient_id):
 #         ward_selected=ward_selected,
 #         medicines=medicines
 #     )
-
-@app.route('/doctor', methods=['GET', 'POST'])
-def doctor():
-    db = get_db()
-
-    if request.method == 'POST':
-        patient_id = request.form['patient_id']
-        symptoms = request.form['symptoms']
-        diagnosis = request.form['diagnosis']
-        prescriptions = request.form['prescriptions']  # selected medicine ID
-        billing_amount = request.form['billing_amount']
-        ward_selected = request.form.get('ward')
-        bed_selected = request.form.get('bed_number')
-
-        # Update patient record
-        db.execute("""
-            UPDATE patients 
-            SET symptoms=?, diagnosis=?, prescriptions=?, status='awaiting_pharmacy',
-                billing_amount=?, updated_at=CURRENT_TIMESTAMP
-            WHERE id=?
-        """, (symptoms, diagnosis, prescriptions, billing_amount, patient_id))
-
-        # Assign bed if chosen
-        if bed_selected and ward_selected:
-            db.execute("""
-                UPDATE beds
-                SET status='occupied'
-                WHERE bed_number=? AND ward=? AND status='available'
-            """, (bed_selected, ward_selected))
-
-        # Insert pharmacy order
-        db.execute("""
-            INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
-        """, (patient_id, prescriptions, 'Dr. Wanyama'))
-
-        # Insert cashier order
-        db.execute("""
-            INSERT INTO cashier_orders (patient_id, amount, status)
-            VALUES (?, ?, 'pending')
-        """, (patient_id, billing_amount))
-
-        db.commit()
-        flash('Diagnosis and prescription saved. Patient sent to pharmacy and cashier!', 'success')
-        return redirect(url_for('doctor_dashboard'))
-
-    # --- GET request: show doctor interface ---
-    patients = db.execute("""
-        SELECT p.id AS patient_id, p.medical_record_number,
-               p.first_name || ' ' || p.last_name AS patient_name,
-               lr.results, lr.created_at, lo.test_name
-        FROM patients p
-        JOIN lab_orders lo ON lo.patient_id = p.id
-        JOIN lab_results lr ON lr.order_id = lo.id
-        WHERE p.status = 'awaiting_doctor'
-        ORDER BY lr.created_at DESC
-    """).fetchall()
-
-    wards = db.execute("""
-        SELECT DISTINCT ward
-        FROM beds
-        WHERE status='available'
-        ORDER BY ward
-    """).fetchall()
-
-    ward_selected = request.args.get('ward')
-    if ward_selected:
-        available_beds = db.execute("""
-            SELECT bed_number, ward
-            FROM beds
-            WHERE status='available' AND ward=?
-            ORDER BY bed_number
-        """, (ward_selected,)).fetchall()
-    else:
-        available_beds = []
-
-    medicines = db.execute("""
-        SELECT id, name, unit_price
-        FROM medicines
-        ORDER BY name
-    """).fetchall()
-
-    current_date = datetime.now().strftime('%A, %B %d, %Y')
-
-    return render_template(
-        'doctor.html',
-        patients=patients,
-        current_date=current_date,
-        wards=wards,
-        available_beds=available_beds,
-        ward_selected=ward_selected,
-        medicines=medicines
-    )
 
 
 # @app.route('/doctor', methods=['GET', 'POST'])
@@ -887,72 +1099,312 @@ def doctor_detail(patient_id):
     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
     return render_template('doctor.html', patient=patient, current_date=current_date)
 
-
 @app.route("/examine/<int:patient_id>", methods=["GET", "POST"])
 def examine(patient_id):
     db = get_db()
 
-    # Fetch patient record
-    patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    # Validate patient exists and patient_id is valid
+    patient = db.execute("SELECT id, first_name, last_name FROM patients WHERE id=?", (patient_id,)).fetchone()
     if not patient:
         flash("Patient not found.", "danger")
         return redirect(url_for("doctor"))
 
     if request.method == "POST":
-        # Save examination details
         symptoms = request.form.get("symptoms")
         diagnosis = request.form.get("diagnosis")
         tests = request.form.get("tests")
         billing_amount = request.form.get("billing_amount")
 
-        # Multiple medicines + quantities
-        medicine_ids = request.form.getlist("medicine_ids[]")
-        quantities = request.form.getlist("quantities[]")
+        # Accept either naming style
+        medicine_ids = request.form.getlist("medicine_ids") or request.form.getlist("medicine_ids[]")
+        quantities = request.form.getlist("quantities") or request.form.getlist("quantities[]")
 
-        # Update patient record
-        db.execute("""
-            UPDATE patients
-            SET symptoms=?, diagnosis=?, tests_ordered=?, billing_amount=?
-            WHERE id=?
-        """, (symptoms, diagnosis, tests, billing_amount, patient_id))
+        # Debug: log what arrived
+        app.logger.debug("Examine POST for patient_id=%s; form keys=%s", patient_id, list(request.form.keys()))
+        app.logger.debug("medicine_ids=%r quantities=%r", medicine_ids, quantities)
 
-        # Clear old prescriptions and insert new ones
-        db.execute("DELETE FROM patient_medicines WHERE patient_id=?", (patient_id,))
-        for med_id, qty in zip(medicine_ids, quantities):
+        try:
+            # Update patient record
             db.execute("""
-                INSERT INTO patient_medicines (patient_id, medicine_id, dosage)
-                VALUES (?, ?, ?)
-            """, (patient_id, med_id, qty))
+                UPDATE patients
+                SET symptoms=?, diagnosis=?, tests_ordered=?, billing_amount=?, status='awaiting_pharmacy'
+                WHERE id=?
+            """, (symptoms, diagnosis, tests, billing_amount, patient_id))
 
-        db.commit()
+            # Clear old prescriptions
+            db.execute("DELETE FROM patient_medicines WHERE patient_id=?", (patient_id,))
 
-        flash("Examination details saved with prescriptions.", "success")
-        return redirect(url_for("examine", patient_id=patient_id))
+            # Insert new patient_medicines with validation
+            inserted = []
+            for med_id_raw, qty_raw in zip(medicine_ids, quantities):
+                if not med_id_raw:
+                    app.logger.warning("Skipping empty med_id (patient %s)", patient_id)
+                    continue
+                try:
+                    mid = int(med_id_raw)
+                    q = int(qty_raw)
+                except (TypeError, ValueError):
+                    app.logger.warning("Skipping invalid med row med_id=%r qty=%r for patient %s", med_id_raw, qty_raw, patient_id)
+                    continue
 
-    # 🔑 Fetch available beds for the Admit Patient modal
-    available_beds = db.execute("""
-        SELECT bed_number, ward
-        FROM beds
-        WHERE status='available'
-        ORDER BY ward, bed_number
-    """).fetchall()
+                # Extra validation: ensure patient_id is an int and not None
+                if patient_id is None:
+                    app.logger.error("patient_id is None before insert; aborting")
+                    raise RuntimeError("Invalid patient_id")
 
-    # 🔑 Fetch medicines for dropdown
-    medicines = db.execute("""
-        SELECT id, name, unit_price
-        FROM medicines
-        ORDER BY name
-    """).fetchall()
+                # Perform insert with correct parameter order (patient_id, medicine_id, dosage)
+                try:
+                    db.execute(
+                        "INSERT INTO patient_medicines (patient_id, medicine_id, dosage) VALUES (?, ?, ?)",
+                        (patient_id, mid, q)
+                    )
+                    inserted.append((mid, q))
+                    app.logger.debug("Inserted patient_medicines patient=%s med=%s qty=%s", patient_id, mid, q)
+                except Exception:
+                    app.logger.exception("Failed to insert patient_medicines row for patient %s med=%s qty=%s", patient_id, mid, q)
+                    # continue inserting other valid rows; do not abort entire flow here
 
+            # Build prescription_text from successfully inserted rows
+            prescription_parts = [f"{mid}:{qty}" for (mid, qty) in inserted if qty > 0]
+            prescription_text = ",".join(prescription_parts) if prescription_parts else None
+            app.logger.debug("Built prescription_text=%r for patient %s", prescription_text, patient_id)
+
+            # Insert pharmacy order (use prescription_text)
+            db.execute("""
+                INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+            """, (patient_id, prescription_text, f"Dr. {patient['last_name'] or 'Wanyama'}"))
+
+            # Update doctor queue and commit
+            db.execute("UPDATE doctor_queue SET status='examined' WHERE patient_id=?", (patient_id,))
+            db.commit()
+
+            flash("Examination details saved and prescriptions sent to pharmacy.", "success")
+            return redirect(url_for("doctor"))
+
+        except Exception:
+            db.rollback()
+            app.logger.exception("Failed to save examination for patient %s", patient_id)
+            flash("Failed to save examination. Check server logs.", "danger")
+            return redirect(url_for("doctor"))
+
+    # GET branch: render form
+    available_beds = db.execute(
+        "SELECT bed_number, ward FROM beds WHERE status='available' ORDER BY ward, bed_number"
+    ).fetchall()
+    medicines = db.execute("SELECT id, name, unit_price FROM medicines ORDER BY name").fetchall()
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    return render_template(
-        "examine.html",
-        patient=patient,
-        current_date=current_date,
-        available_beds=available_beds,
-        medicines=medicines
-    )
+    return render_template("examine.html",
+                           patient=patient,
+                           current_date=current_date,
+                           available_beds=available_beds,
+                           medicines=medicines)
+
+# @app.route("/examine/<int:patient_id>", methods=["GET", "POST"])
+# def examine(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     if request.method == "POST":
+#         symptoms = request.form.get("symptoms")
+#         diagnosis = request.form.get("diagnosis")
+#         tests = request.form.get("tests")
+#         billing_amount = request.form.get("billing_amount")
+
+#         # Accept either "medicine_ids" / "quantities" or "medicine_ids[]" / "quantities[]"
+#         medicine_ids = request.form.getlist("medicine_ids") or request.form.getlist("medicine_ids[]")
+#         quantities = request.form.getlist("quantities") or request.form.getlist("quantities[]")
+
+#         # Update patient record
+#         db.execute("""
+#             UPDATE patients
+#             SET symptoms=?, diagnosis=?, tests_ordered=?, billing_amount=?, status='awaiting_pharmacy'
+#             WHERE id=?
+#         """, (symptoms, diagnosis, tests, billing_amount, patient_id))
+
+#         # Clear old prescriptions and insert new ones (coerce and skip invalid rows)
+#         db.execute("DELETE FROM patient_medicines WHERE patient_id=?", (patient_id,))
+#         for med_id, qty in zip(medicine_ids, quantities):
+#             try:
+#                 mid = int(med_id)
+#                 q = int(qty)
+#             except (TypeError, ValueError):
+#                 continue
+#             db.execute(
+#                 "INSERT INTO patient_medicines (patient_id, medicine_id, dosage) VALUES (?, ?, ?)",
+#                 (patient_id, mid, q)
+#             )
+
+#         # Build prescription_text from the newly inserted patient_medicines
+#         meds = db.execute("""
+#             SELECT medicine_id, dosage
+#             FROM patient_medicines
+#             WHERE patient_id = ?
+#         """, (patient_id,)).fetchall()
+
+#         prescription_parts = []
+#         for m in meds:
+#             try:
+#                 mid = int(m['medicine_id'])
+#                 qty = int(m['dosage']) if m['dosage'] else 0
+#             except (TypeError, ValueError):
+#                 continue
+#             if qty > 0:
+#                 prescription_parts.append(f"{mid}:{qty}")
+
+#         prescription_text = ",".join(prescription_parts) if prescription_parts else None
+
+#         # Insert pharmacy order with the real prescription_text
+#         db.execute("""
+#             INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#             VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#         """, (patient_id, prescription_text, "Dr. Wanyama"))
+
+#         # Remove from doctor queue
+#         db.execute("UPDATE doctor_queue SET status='examined' WHERE patient_id=?", (patient_id,))
+
+#         db.commit()
+#         app.logger.debug("Saved exam for patient %s; prescription=%r", patient_id, prescription_text)
+#         flash("Examination details saved and prescriptions sent to pharmacy.", "success")
+#         return redirect(url_for("doctor"))
+
+#     available_beds = db.execute(
+#         "SELECT bed_number, ward FROM beds WHERE status='available' ORDER BY ward, bed_number"
+#     ).fetchall()
+#     medicines = db.execute("SELECT id, name, unit_price FROM medicines ORDER BY name").fetchall()
+#     current_date = datetime.now().strftime("%Y-%m-%d")
+
+#     return render_template("examine.html",
+#                            patient=patient,
+#                            current_date=current_date,
+#                            available_beds=available_beds,
+#                            medicines=medicines)
+
+# @app.route("/examine/<int:patient_id>", methods=["GET", "POST"])
+# def examine(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     if request.method == "POST":
+#         symptoms = request.form.get("symptoms")
+#         diagnosis = request.form.get("diagnosis")
+#         tests = request.form.get("tests")
+#         billing_amount = request.form.get("billing_amount")
+
+#         medicine_ids = request.form.getlist("medicine_ids[]")
+#         quantities = request.form.getlist("quantities[]")
+
+#         # Update patient record
+#         db.execute("""
+#             UPDATE patients
+#             SET symptoms=?, diagnosis=?, tests_ordered=?, billing_amount=?, status='awaiting_pharmacy'
+#             WHERE id=?
+#         """, (symptoms, diagnosis, tests, billing_amount, patient_id))
+
+#         # Clear old prescriptions and insert new ones
+#         db.execute("DELETE FROM patient_medicines WHERE patient_id=?", (patient_id,))
+#         for med_id, qty in zip(medicine_ids, quantities):
+#             db.execute("""
+#                 INSERT INTO patient_medicines (patient_id, medicine_id, dosage)
+#                 VALUES (?, ?, ?)
+#             """, (patient_id, med_id, qty))
+
+#         # Create pharmacy order
+#         db.execute("""
+#             INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#             VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#         """, (patient_id, "prescribed via patient_medicines", "Dr. Wanyama"))
+
+#         # Remove from doctor queue
+#         db.execute("UPDATE doctor_queue SET status='examined' WHERE patient_id=?", (patient_id,))
+
+#         db.commit()
+#         flash("Examination details saved and prescriptions sent to pharmacy.", "success")
+#         return redirect(url_for("doctor"))
+
+#     available_beds = db.execute("SELECT bed_number, ward FROM beds WHERE status='available' ORDER BY ward, bed_number").fetchall()
+#     medicines = db.execute("SELECT id, name, unit_price FROM medicines ORDER BY name").fetchall()
+#     current_date = datetime.now().strftime("%Y-%m-%d")
+
+#     return render_template("examine.html",
+#                            patient=patient,
+#                            current_date=current_date,
+#                            available_beds=available_beds,
+#                            medicines=medicines)
+
+
+# @app.route("/examine/<int:patient_id>", methods=["GET", "POST"])
+# def examine(patient_id):
+#     db = get_db()
+
+#     # Fetch patient record
+#     patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     if request.method == "POST":
+#         # Save examination details
+#         symptoms = request.form.get("symptoms")
+#         diagnosis = request.form.get("diagnosis")
+#         tests = request.form.get("tests")
+#         billing_amount = request.form.get("billing_amount")
+
+#         # Multiple medicines + quantities
+#         medicine_ids = request.form.getlist("medicine_ids[]")
+#         quantities = request.form.getlist("quantities[]")
+
+#         # Update patient record
+#         db.execute("""
+#             UPDATE patients
+#             SET symptoms=?, diagnosis=?, tests_ordered=?, billing_amount=?
+#             WHERE id=?
+#         """, (symptoms, diagnosis, tests, billing_amount, patient_id))
+
+#         # Clear old prescriptions and insert new ones
+#         db.execute("DELETE FROM patient_medicines WHERE patient_id=?", (patient_id,))
+#         for med_id, qty in zip(medicine_ids, quantities):
+#             db.execute("""
+#                 INSERT INTO patient_medicines (patient_id, medicine_id, dosage)
+#                 VALUES (?, ?, ?)
+#             """, (patient_id, med_id, qty))
+
+#         db.commit()
+
+#         flash("Examination details saved with prescriptions.", "success")
+#         return redirect(url_for("examine", patient_id=patient_id))
+
+#     # 🔑 Fetch available beds for the Admit Patient modal
+#     available_beds = db.execute("""
+#         SELECT bed_number, ward
+#         FROM beds
+#         WHERE status='available'
+#         ORDER BY ward, bed_number
+#     """).fetchall()
+
+#     # 🔑 Fetch medicines for dropdown
+#     medicines = db.execute("""
+#         SELECT id, name, unit_price
+#         FROM medicines
+#         ORDER BY name
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime("%Y-%m-%d")
+
+#     return render_template(
+#         "examine.html",
+#         patient=patient,
+#         current_date=current_date,
+#         available_beds=available_beds,
+#         medicines=medicines
+#     )
 
 # @app.route("/examine/<int:patient_id>", methods=["GET", "POST"])
 # def examine(patient_id):
@@ -1106,33 +1558,70 @@ def doctor_dashboard(patient_id):
 
 
 # ....................notify.............................
-@app.route('/notify_doctor_ready/<int:appointment_id>')
+@app.route('/notify_doctor_ready/<int:appointment_id>', methods=['POST'])
 def notify_doctor_ready(appointment_id):
     db = get_db()
 
+    # Find the patient linked to this appointment
     appointment = db.execute("""
-        SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name,
-               d.id AS doctor_id, d.first_name || ' ' || d.last_name AS doctor_name
-        FROM appointments a
-        JOIN patients p ON a.patient_id = p.id
-        JOIN doctors d ON a.doctor_id = d.id
-        WHERE a.id = ?
+        SELECT patient_id
+        FROM appointments
+        WHERE id=?
     """, (appointment_id,)).fetchone()
 
     if not appointment:
         flash("Appointment not found.", "danger")
         return redirect(url_for("dashboard"))
 
-    # Example: update doctor contact if needed
+    patient_id = appointment['patient_id']
+
+    # Insert into doctor_queue
     db.execute("""
-        UPDATE doctors
-        SET contact = ?
-        WHERE id = ?
-    """, ("0712345678", appointment["doctor_id"]))
+        INSERT INTO doctor_queue (patient_id, status, queued_at)
+        VALUES (?, 'pending', CURRENT_TIMESTAMP)
+    """, (patient_id,))
+
+    # Update patient status
+    db.execute("""
+        UPDATE patients
+        SET status='waiting_for_doctor'
+        WHERE id=?
+    """, (patient_id,))
+
     db.commit()
 
-    flash(f"Doctor {appointment['doctor_name']} notified successfully!", "success")
-    return redirect(url_for("dashboard"))
+    flash("Patient sent to doctor queue successfully!", "success")
+    return redirect(url_for("doctor"))
+
+
+
+# @app.route('/notify_doctor_ready/<int:appointment_id>')
+# def notify_doctor_ready(appointment_id):
+#     db = get_db()
+
+#     appointment = db.execute("""
+#         SELECT a.id, p.first_name || ' ' || p.last_name AS patient_name,
+#                d.id AS doctor_id, d.first_name || ' ' || d.last_name AS doctor_name
+#         FROM appointments a
+#         JOIN patients p ON a.patient_id = p.id
+#         JOIN doctors d ON a.doctor_id = d.id
+#         WHERE a.id = ?
+#     """, (appointment_id,)).fetchone()
+
+#     if not appointment:
+#         flash("Appointment not found.", "danger")
+#         return redirect(url_for("dashboard"))
+
+#     # Example: update doctor contact if needed
+#     db.execute("""
+#         UPDATE doctors
+#         SET contact = ?
+#         WHERE id = ?
+#     """, ("0712345678", appointment["doctor_id"]))
+#     db.commit()
+
+#     flash(f"Doctor {appointment['doctor_name']} notified successfully!", "success")
+#     return redirect(url_for("dashboard"))
 
 
 # @app.route('/notify_doctor_ready/<int:appointment_id>')
@@ -1242,91 +1731,463 @@ def doctor_ready(appointment_id):
 #                            current_date=current_date,
 #                            prescriptions=[],  # optional if you want to show breakdown
 #                            total=0)
-@app.route('/pharmacy')
-def pharmacy():
-    db = get_db()
-    orders = db.execute("""
-        SELECT po.id, p.medical_record_number,
-               p.first_name || ' ' || p.last_name AS patient_name,
-               po.prescription, po.ordered_by, po.created_at,
-               po.status, po.fulfilled_by, po.fulfilled_at
-        FROM pharmacy_orders po
-        JOIN patients p ON po.patient_id = p.id
-        ORDER BY po.created_at DESC
-    """).fetchall()
+# --- Helper calculators ---
+def calculate_medication_total(prescription_text, db):
+    """
+    Accepts either:
+      - a prescription string like "12:2,15:1" (medicine_id:qty,...)
+      - or None/empty, in which case it will sum patient_medicines for the patient_id caller should handle
+    This function is defensive: if parsing fails it returns 0.0
+    """
+    if not prescription_text:
+        return 0.0
 
-    current_date = datetime.now().strftime('%A, %B %d, %Y')
-    return render_template('pharmacy.html',
-                           orders=orders,
-                           current_date=current_date)
-    
+    total = 0.0
+    try:
+        pairs = [p.strip() for p in prescription_text.split(",") if p.strip()]
+        for pair in pairs:
+            if ":" in pair:
+                med_id_str, qty_str = pair.split(":", 1)
+                med_id = int(med_id_str)
+                qty = int(qty_str)
+                row = db.execute("SELECT unit_price FROM medicines WHERE id=?", (med_id,)).fetchone()
+                if row and row["unit_price"]:
+                    total += float(row["unit_price"]) * qty
+    except Exception:
+        return 0.0
+    return total
 
-# Fulfill a pharmacy order
-@app.route('/pharmacy/fulfill', methods=['POST'])
-def fulfill_order():
-    order_id = request.form['order_id']
-    db = get_db()
+def calculate_medication_total_from_patient(patient_id, db):
+    total = 0.0
+    rows = db.execute("""
+        SELECT m.unit_price, pm.dosage
+        FROM patient_medicines pm
+        JOIN medicines m ON pm.medicine_id = m.id
+        WHERE pm.patient_id = ?
+    """, (patient_id,)).fetchall()
+    for r in rows:
+        qty = int(r["dosage"]) if r["dosage"] else 0
+        price = float(r["unit_price"]) if r["unit_price"] else 0.0
+        total += qty * price
+    return total
 
-    order = db.execute("""
-        SELECT po.patient_id, po.prescription
-        FROM pharmacy_orders po
-        WHERE po.id=?
-    """, (order_id,)).fetchone()
+def calculate_lab_total(patient_id, db):
+    # If you have a lab_orders table, sum its amounts; otherwise return 0
+    try:
+        row = db.execute("""
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM lab_orders
+            WHERE patient_id = ? AND status IN ('pending','completed')
+        """, (patient_id,)).fetchone()
+        return float(row["total"]) if row else 0.0
+    except Exception:
+        return 0.0
 
-    if not order:
-        flash("Order not found.", "danger")
-        return redirect(url_for("pharmacy"))
+def calculate_admission_total(patient_id, db):
+    # If you have admissions or bed charges table, sum it; otherwise return 0
+    try:
+        row = db.execute("""
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM admission_charges
+            WHERE patient_id = ?
+        """, (patient_id,)).fetchone()
+        return float(row["total"]) if row else 0.0
+    except Exception:
+        return 0.0
 
-    # Mark pharmacy order as fulfilled
-    db.execute("""
-        UPDATE pharmacy_orders
-        SET status='fulfilled', fulfilled_by='Pharmacist A', fulfilled_at=CURRENT_TIMESTAMP
-        WHERE id=?
-    """, (order_id,))
-
-    # Calculate totals (assuming you have helper functions)
-    med_total = calculate_medication_total(order['prescription'], db)
-    lab_total = calculate_lab_total(order['patient_id'], db)
-    admission_total = calculate_admission_total(order['patient_id'], db)
-
-    bill_amount = med_total + lab_total + admission_total
-
-    # Insert cashier order
-    db.execute("""
-        INSERT INTO cashier_orders (patient_id, amount, status, created_at)
-        VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
-    """, (order['patient_id'], bill_amount))
-
-    db.commit()
-    flash(f'Order fulfilled and sent to cashier. Bill: KES {bill_amount}')
-    return redirect(url_for('pharmacy'))
-
-
-# Send a patient to pharmacy (called from doctor workflow)
-@app.route("/send_to_pharmacy/<int:patient_id>")
+# --- Doctor sends patient to pharmacy (used by doctor workflow) ---
+@app.route("/send_to_pharmacy/<int:patient_id>", methods=["POST", "GET"])
 def send_to_pharmacy(patient_id):
     db = get_db()
-
     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
     if not patient:
         flash("Patient record not found.", "danger")
         return redirect(url_for("doctor"))
 
+    # Build prescription_text from patient_medicines (defensive, coerces types)
+    meds = db.execute("""
+        SELECT medicine_id, dosage
+        FROM patient_medicines
+        WHERE patient_id = ?
+    """, (patient_id,)).fetchall()
+
+    prescription_parts = []
+    for m in meds:
+        try:
+            mid = int(m['medicine_id'])
+            qty = int(m['dosage']) if m['dosage'] else 0
+        except (TypeError, ValueError):
+            continue
+        if qty > 0:
+            prescription_parts.append(f"{mid}:{qty}")
+
+    prescription_text = ",".join(prescription_parts) if prescription_parts else None
+
+    # Insert pharmacy order with the constructed prescription_text
     db.execute("""
         INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
-    """, (patient_id, patient["prescriptions"], "Dr. Wanyama"))
+    """, (patient_id, prescription_text, "Dr. Wanyama"))
 
-    db.execute("""
-        UPDATE patients
-        SET status='pharmacy'
-        WHERE id=?
-    """, (patient_id,))
-
+    # Update patient status and commit
+    db.execute("UPDATE patients SET status='pharmacy' WHERE id=?", (patient_id,))
     db.commit()
 
+    app.logger.debug("send_to_pharmacy: patient_id=%s prescription=%r", patient_id, prescription_text)
     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", "success")
     return redirect(url_for("doctor"))
+
+# @app.route("/send_to_pharmacy/<int:patient_id>", methods=["POST", "GET"])
+# def send_to_pharmacy(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient record not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     # Build prescription text from patient_medicines
+#     meds = db.execute("""
+#         SELECT medicine_id, dosage
+#         FROM patient_medicines
+#         WHERE patient_id = ?
+#     """, (patient_id,)).fetchall()
+
+#     if meds:
+#         prescription_text = ",".join([f"{m['medicine_id']}:{m['dosage']}" for m in meds if m['dosage']])
+#     else:
+#         prescription_text = None
+
+#     db.execute("""
+#         INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#     """, (patient_id, prescription_text, "Dr. Wanyama"))
+
+#     db.execute("UPDATE patients SET status='pharmacy' WHERE id=?", (patient_id,))
+#     db.commit()
+
+#     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", "success")
+#     return redirect(url_for("doctor"))
+
+# @app.route("/send_to_pharmacy/<int:patient_id>", methods=["POST", "GET"])
+# def send_to_pharmacy(patient_id):
+#     db = get_db()
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient record not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     prescription_text = patient["prescriptions"] if "prescriptions" in patient.keys() else None
+
+#     db.execute("""
+#         INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#     """, (patient_id, prescription_text, "Dr. Wanyama"))
+
+#     db.execute("UPDATE patients SET status='pharmacy' WHERE id=?", (patient_id,))
+#     db.commit()
+
+#     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", "success")
+#     return redirect(url_for("doctor"))
+
+# --- Pharmacy listing (detailed) ---
+@app.route('/pharmacy', methods=['GET'])
+def pharmacy():
+    db = get_db()
+
+    orders = db.execute("""
+        SELECT po.id AS order_id,
+               po.patient_id,
+               po.created_at,
+               po.status,
+               po.ordered_by,
+               p.first_name || ' ' || p.last_name AS patient_name,
+               p.medical_record_number
+        FROM pharmacy_orders po
+        JOIN patients p ON po.patient_id = p.id
+        WHERE po.status = 'pending'
+        ORDER BY po.created_at ASC
+    """).fetchall()
+
+    detailed = []
+    for o in orders:
+        meds = db.execute("""
+            SELECT m.id AS medicine_id, m.name, pm.dosage AS quantity, m.unit_price
+            FROM patient_medicines pm
+            JOIN medicines m ON pm.medicine_id = m.id
+            WHERE pm.patient_id = ?
+        """, (o['patient_id'],)).fetchall()
+
+        total = 0.0
+        meds_list = []
+        for m in meds:
+            qty = int(m['quantity']) if m['quantity'] else 0
+            price = float(m['unit_price']) if m['unit_price'] else 0.0
+            line_total = qty * price
+            total += line_total
+            meds_list.append({
+                'medicine_id': m['medicine_id'],
+                'name': m['name'],
+                'quantity': qty,
+                'unit_price': price,
+                'line_total': line_total
+            })
+
+        detailed.append({
+            'order': {
+                'order_id': o['order_id'],
+                'patient_id': o['patient_id'],
+                'patient_name': o['patient_name'],
+                'medical_record_number': o['medical_record_number'],
+                'created_at': o['created_at'],
+                'status': o['status'],
+                'ordered_by': o['ordered_by']
+            },
+            'medicines': meds_list,
+            'total': total
+        })
+
+    current_date = datetime.now().strftime('%A, %B %d, %Y %H:%M')
+    return render_template('pharmacy.html', orders=detailed, current_date=current_date)
+
+# --- Fulfill / complete order (pharmacist action) ---
+@app.route('/pharmacy/complete/<int:order_id>', methods=['POST'])
+def complete_pharmacy_order(order_id):
+    db = get_db()
+    # mark pharmacy order completed
+    db.execute("""
+        UPDATE pharmacy_orders
+        SET status='dispensed', dispensed_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    """, (order_id,))
+
+    # fetch order to compute billing
+    order = db.execute("SELECT patient_id, prescription FROM pharmacy_orders WHERE id=?", (order_id,)).fetchone()
+    if not order:
+        db.commit()
+        flash('Order not found.', 'danger')
+        return redirect(url_for('pharmacy'))
+
+    patient_id = order['patient_id']
+    prescription_text = order['prescription']
+
+    # medication total: prefer patient_medicines if present, otherwise parse prescription_text
+    med_total = calculate_medication_total_from_patient(patient_id, db)
+    if med_total == 0.0 and prescription_text:
+        med_total = calculate_medication_total(prescription_text, db)
+
+    lab_total = calculate_lab_total(patient_id, db)
+    admission_total = calculate_admission_total(patient_id, db)
+    bill_amount = med_total + lab_total + admission_total
+
+    db.execute("""
+        INSERT INTO cashier_orders (patient_id, amount, status, created_at)
+        VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+    """, (patient_id, bill_amount))
+
+    db.commit()
+    flash(f'Order marked dispensed and sent to cashier. Bill: KES {bill_amount:.2f}', 'success')
+    return redirect(url_for('pharmacy'))
+
+# --- Legacy fulfill endpoint used by table forms ---
+@app.route('/pharmacy/fulfill', methods=['POST'])
+def fulfill_order():
+    order_id = request.form.get('order_id')
+    if not order_id:
+        flash('Missing order id', 'danger')
+        return redirect(url_for('pharmacy'))
+    return complete_pharmacy_order(int(order_id))
+
+# --- Print receipt ---
+@app.route('/pharmacy/receipt/<int:order_id>', methods=['POST'])
+def print_pharmacy_receipt(order_id):
+    db = get_db()
+    order = db.execute("""
+        SELECT po.id AS order_id, po.patient_id, po.created_at, po.status,
+               p.first_name || ' ' || p.last_name AS patient_name, p.medical_record_number
+        FROM pharmacy_orders po
+        JOIN patients p ON po.patient_id = p.id
+        WHERE po.id = ?
+    """, (order_id,)).fetchone()
+
+    if not order:
+        flash('Order not found', 'danger')
+        return redirect(url_for('pharmacy'))
+
+    meds = db.execute("""
+        SELECT m.name, pm.dosage AS quantity, m.unit_price
+        FROM patient_medicines pm
+        JOIN medicines m ON pm.medicine_id = m.id
+        WHERE pm.patient_id = ?
+    """, (order['patient_id'],)).fetchall()
+
+    total = 0.0
+    meds_list = []
+    for m in meds:
+        qty = int(m['quantity']) if m['quantity'] else 0
+        price = float(m['unit_price']) if m['unit_price'] else 0.0
+        line_total = qty * price
+        total += line_total
+        meds_list.append({'name': m['name'], 'quantity': qty, 'unit_price': price, 'line_total': line_total})
+
+    return render_template('pharmacy_receipt.html', order=order, medicines=meds_list, total=total)
+
+# --- View patient details ---
+@app.route('/patient/<int:patient_id>')
+def view_patient(patient_id):
+    db = get_db()
+    patient = db.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    if not patient:
+        flash('Patient not found', 'danger')
+        return redirect(url_for('pharmacy'))
+    return render_template('patient_view.html', patient=patient)
+
+
+
+
+# @app.route('/pharmacy')
+# def pharmacy():
+#     db = get_db()
+
+#     # top-level pending pharmacy orders with patient info
+#     orders = db.execute("""
+#         SELECT po.id AS order_id,
+#                po.patient_id,
+#                po.created_at,
+#                po.status,
+#                po.ordered_by,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                p.medical_record_number
+#         FROM pharmacy_orders po
+#         JOIN patients p ON po.patient_id = p.id
+#         WHERE po.status = 'pending'
+#         ORDER BY po.created_at ASC
+#     """).fetchall()
+
+#     detailed = []
+#     for o in orders:
+#         meds = db.execute("""
+#             SELECT m.id AS medicine_id, m.name, pm.dosage AS quantity, m.unit_price
+#             FROM patient_medicines pm
+#             JOIN medicines m ON pm.medicine_id = m.id
+#             WHERE pm.patient_id = ?
+#         """, (o['patient_id'],)).fetchall()
+
+#         total = 0.0
+#         meds_list = []
+#         for m in meds:
+#             qty = int(m['quantity']) if m['quantity'] else 0
+#             price = float(m['unit_price']) if m['unit_price'] else 0.0
+#             line_total = qty * price
+#             total += line_total
+#             meds_list.append({
+#                 'medicine_id': m['medicine_id'],
+#                 'name': m['name'],
+#                 'quantity': qty,
+#                 'unit_price': price,
+#                 'line_total': line_total
+#             })
+
+#         detailed.append({
+#             'order': {
+#                 'order_id': o['order_id'],
+#                 'patient_id': o['patient_id'],
+#                 'patient_name': o['patient_name'],
+#                 'medical_record_number': o['medical_record_number'],
+#                 'created_at': o['created_at'],
+#                 'status': o['status'],
+#                 'ordered_by': o['ordered_by']
+#             },
+#             'medicines': meds_list,
+#             'total': total
+#         })
+
+#     current_date = datetime.now().strftime("%A, %B %d, %Y %H:%M")
+#     return render_template('pharmacy.html', orders=detailed, current_date=current_date)
+# @app.route('/pharmacy')
+# def pharmacy():
+#     db = get_db()
+#     orders = db.execute("""
+#         SELECT po.id, p.medical_record_number,
+#                p.first_name || ' ' || p.last_name AS patient_name,
+#                po.prescription, po.ordered_by, po.created_at,
+#                po.status, po.fulfilled_by, po.fulfilled_at
+#         FROM pharmacy_orders po
+#         JOIN patients p ON po.patient_id = p.id
+#         ORDER BY po.created_at DESC
+#     """).fetchall()
+
+#     current_date = datetime.now().strftime('%A, %B %d, %Y')
+#     return render_template('pharmacy.html',
+#                            orders=orders,
+#                            current_date=current_date)
+    
+
+# Fulfill a pharmacy order
+# @app.route('/pharmacy/fulfill', methods=['POST'])
+# def fulfill_order():
+#     order_id = request.form['order_id']
+#     db = get_db()
+
+#     order = db.execute("""
+#         SELECT po.patient_id, po.prescription
+#         FROM pharmacy_orders po
+#         WHERE po.id=?
+#     """, (order_id,)).fetchone()
+
+#     if not order:
+#         flash("Order not found.", "danger")
+#         return redirect(url_for("pharmacy"))
+
+#     # Mark pharmacy order as fulfilled
+#     db.execute("""
+#         UPDATE pharmacy_orders
+#         SET status='fulfilled', fulfilled_by='Pharmacist A', fulfilled_at=CURRENT_TIMESTAMP
+#         WHERE id=?
+#     """, (order_id,))
+
+#     # Calculate totals (assuming you have helper functions)
+#     med_total = calculate_medication_total(order['prescription'], db)
+#     lab_total = calculate_lab_total(order['patient_id'], db)
+#     admission_total = calculate_admission_total(order['patient_id'], db)
+
+#     bill_amount = med_total + lab_total + admission_total
+
+#     # Insert cashier order
+#     db.execute("""
+#         INSERT INTO cashier_orders (patient_id, amount, status, created_at)
+#         VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)
+#     """, (order['patient_id'], bill_amount))
+
+#     db.commit()
+#     flash(f'Order fulfilled and sent to cashier. Bill: KES {bill_amount}')
+#     return redirect(url_for('pharmacy'))
+
+
+# # Send a patient to pharmacy (called from doctor workflow)
+# @app.route("/send_to_pharmacy/<int:patient_id>")
+# def send_to_pharmacy(patient_id):
+#     db = get_db()
+
+#     patient = db.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
+#     if not patient:
+#         flash("Patient record not found.", "danger")
+#         return redirect(url_for("doctor"))
+
+#     db.execute("""
+#         INSERT INTO pharmacy_orders (patient_id, prescription, ordered_by, created_at, status)
+#         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'pending')
+#     """, (patient_id, patient["prescriptions"], "Dr. Wanyama"))
+
+#     db.execute("""
+#         UPDATE patients
+#         SET status='pharmacy'
+#         WHERE id=?
+#     """, (patient_id,))
+
+#     db.commit()
+
+#     flash(f"Patient {patient['first_name']} {patient['last_name']} sent to pharmacy.", "success")
+#     return redirect(url_for("doctor"))
 
 # @app.route('/pharmacy')
 # def pharmacy():
@@ -11006,10 +11867,3 @@ if __name__ == "__main__":
 
 # # # if __name__ == '__main__':
 # # #     app.run(debug=True)
-
-
-
-
-
-
-

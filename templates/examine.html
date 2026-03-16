@@ -59,14 +59,27 @@
     <!-- Initial prescription row -->
     <div class="row mb-2 prescription-row">
       <div class="col-md-6">
-        <select class="form-select medicine-select" name="medicine_ids[]" required>
+        <!-- select -->
+<select class="form-select medicine-select" name="medicine_ids" required>
+  <option value=""> -- Select Medicine -- </option>
+  {% for med in medicines %}
+  <option value="{{ med.id }}" data-price="{{ med.unit_price }}">
+    {{ med.name }} (KES {{ med.unit_price }})
+  </option>
+  {% endfor %}
+</select>
+
+<!-- quantity -->
+<input type="number" class="form-control quantity-input" name="quantities" min="1" value="1" required>
+
+        <!-- <select class="form-select medicine-select" name="medicine_ids[]" required>
           <option value="">-- Select Medicine --</option>
           {% for med in medicines %}
             <option value="{{ med.id }}" data-price="{{ med.unit_price }}">
               {{ med.name }} (KES {{ med.unit_price }})
             </option>
           {% endfor %}
-        </select>
+        </select> -->
       </div>
       <div class="col-md-3">
         <input type="number" class="form-control quantity-input" name="quantities[]" min="1" value="1" required>
